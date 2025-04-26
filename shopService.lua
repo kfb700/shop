@@ -37,7 +37,7 @@ local function readObjectFromFile(path)
 function ShopService:new(terminalName)
     local obj = {}
 
-    function obj:init()
+    
 
         self.telegramLoggers = {
         telegramLog_buy = telegramLog_buy, 
@@ -50,22 +50,22 @@ function ShopService:new(terminalName)
         self.buyShopList = readObjectFromFile("/home/config/buyShop.cfg")
 
         self.db = Database:new("USERS")
-        self.currencies = {}
-        self.currencies[1] = {}
-        self.currencies[1].item = {name = "", damage = 0}
-        self.currencies[1].money = 1000
+    self.currencies = {}
+    self.currencies[1] = {}
+    self.currencies[1].item = {name = "minecraft:gold_nugget", damage = 0}  -- Добавили реальные имена предметов
+    self.currencies[1].money = 1000
 
-        self.currencies[2] = {}
-        self.currencies[2].item = {name = "", damage = 0}
-        self.currencies[2].money = 10000
+    self.currencies[2] = {}
+    self.currencies[2].item = {name = "minecraft:gold_ingot", damage = 0}
+    self.currencies[2].money = 10000
 
-        self.currencies[3] = {}
-        self.currencies[3].item = {name = "", damage = 0}
-        self.currencies[3].money = 100000
+    self.currencies[3] = {}
+    self.currencies[3].item = {name = "minecraft:diamond", damage = 0}
+    self.currencies[3].money = 100000
 
-        self.currencies[4] = {}
-        self.currencies[4].item = {name = "", damage = 0}
-        self.currencies[4].money = 1000000
+    self.currencies[4] = {}
+    self.currencies[4].item = {name = "minecraft:emerald", damage = 0}
+    self.currencies[4].money = 1000000
 
         itemUtils.setCurrency(self.currencies)
     end

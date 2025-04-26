@@ -16,11 +16,10 @@ end
 
 local function printD(...) end
 
-
 local function readObjectFromFile(path)
     local file, err = io.open(path, "r")
     if not file then
-      return nil, "Failed to open file: " .. (err or "unknown error")
+        return nil, "Failed to open file: " .. (err or "unknown error")
     end
   
     local content = file:read("*a")
@@ -28,21 +27,21 @@ local function readObjectFromFile(path)
   
     local obj = serialization.unserialize(content)
     if not obj then
-      return nil, "Failed to unserialize content from file"
+        return nil, "Failed to unserialize content from file"
     end
   
     return obj
-  end
+end
 
 function ShopService:new(terminalName)
     local obj = {}
-
     
-
+    function obj:init()
         self.telegramLoggers = {
-        telegramLog_buy = telegramLog_buy, 
-        telegramLog_sell = telegramLog_sell, 
-        telegramLog_OreExchange = telegramLog_OreExchange }
+            telegramLog_buy = telegramLog_buy, 
+            telegramLog_sell = telegramLog_sell, 
+            telegramLog_OreExchange = telegramLog_OreExchange 
+        }
 
         self.oreExchangeList = readObjectFromFile("/home/config/oreExchanger.cfg")
         self.exchangeList = readObjectFromFile("/home/config/exchanger.cfg")
@@ -50,22 +49,23 @@ function ShopService:new(terminalName)
         self.buyShopList = readObjectFromFile("/home/config/buyShop.cfg")
 
         self.db = Database:new("USERS")
-    self.currencies = {}
-    self.currencies[1] = {}
-    self.currencies[1].item = {name = "minecraft:gold_nugget", damage = 0}  -- Добавили реальные имена предметов
-    self.currencies[1].money = 1000
-
-    self.currencies[2] = {}
-    self.currencies[2].item = {name = "minecraft:gold_ingot", damage = 0}
-    self.currencies[2].money = 10000
-
-    self.currencies[3] = {}
-    self.currencies[3].item = {name = "minecraft:diamond", damage = 0}
-    self.currencies[3].money = 100000
-
-    self.currencies[4] = {}
-    self.currencies[4].item = {name = "minecraft:emerald", damage = 0}
-    self.currencies[4].money = 1000000
+        self.currencies = {}
+        self.currencies[1] = {
+            item = {name = "minecraft:gold_nugget", damage = 0},
+            money = 1000
+        }
+        self.currencies[2] = {
+            item = {name = "minecraft:gold_ingot", damage = 0},
+            money = 10000
+        }
+        self.currencies[3] = {
+            item = {name = "minecraft:diamond", damage = 0},
+            money = 100000
+        }
+        self.currencies[4] = {
+            item = {name = "minecraft:emerald", damage = 0},
+            money = 1000000
+        }
 
         itemUtils.setCurrency(self.currencies)
     end
@@ -82,31 +82,24 @@ function ShopService:new(terminalName)
         return self.oreExchangeList
     end
 
-
-
     function obj:getExchangeList()
         return self.exchangeList
     end
 
-
     function obj:getSellShopList(category)
         local categorySellShopList = {}
-
         for i, sellConfig in pairs(self.sellShopList) do
             if (sellConfig.category == category) then
                 table.insert(categorySellShopList, sellConfig)
             end
         end
         itemUtils.populateCount(categorySellShopList)
-
         return categorySellShopList
     end
 
     function obj:getBuyShopList()
         local categoryBuyShopList = self.buyShopList
-
         itemUtils.populateUserCount(categoryBuyShopList)
-
         return categoryBuyShopList
     end
 
@@ -138,7 +131,6 @@ function ShopService:new(terminalName)
         local countOfMoney = itemUtils.takeMoney(count)
         if (countOfMoney > 0) then
             local playerData = self:getPlayerData(nick)
-
             playerData.balance = playerData.balance + countOfMoney
             self.db:insert(nick, playerData)
             printD(terminalName .. ": Игрок " .. nick .. " пополнил баланс на " .. countOfMoney .. " Текущий баланс " .. playerData.balance)
@@ -149,7 +141,6 @@ function ShopService:new(terminalName)
 
     function obj:withdrawMoney(nick, count)
         local playerData = self:getPlayerData(nick)
-
         if (playerData.balance < count) then
             return 0, "Не хватает денег на счету"
         end
@@ -167,22 +158,22 @@ function ShopService:new(terminalName)
         end
     end
 
-function obj:getPlayerData(nick)
-    print("[DEBUG] Загрузка данных для", nick)
-    local playerDataList = self.db:select({self:dbClause("_id", nick, "=")})  -- Изменили "ID" на "_id"
-    
-    if not playerDataList or not playerDataList[1] then
-        print("[DEBUG] Создание нового игрока", nick)
-        local newPlayer = {_id = nick, balance = 0, items = {}}
-        if not self.db:insert(nick, newPlayer) then
-            print("[ERROR] Не удалось создать запись для нового игрока")
+    function obj:getPlayerData(nick)
+        print("[DEBUG] Загрузка данных для", nick)
+        local playerDataList = self.db:select({self:dbClause("_id", nick, "=")})
+        
+        if not playerDataList or not playerDataList[1] then
+            print("[DEBUG] Создание нового игрока", nick)
+            local newPlayer = {_id = nick, balance = 0, items = {}}
+            if not self.db:insert(nick, newPlayer) then
+                print("[ERROR] Не удалось создать запись для нового игрока")
+            end
+            return newPlayer
         end
-        return newPlayer
+        
+        print("[DEBUG] Найден баланс:", playerDataList[1].balance)
+        return playerDataList[1]
     end
-    
-    print("[DEBUG] Найден баланс:", playerDataList[1].balance)
-    return playerDataList[1]
-end
 
     function obj:withdrawItem(nick, id, dmg, count)
         local playerData = self:getPlayerData(nick)
@@ -207,12 +198,10 @@ end
 
     function obj:sellItem(nick, itemCfg, count)
         local playerData = self:getPlayerData(nick)
-
         if (playerData.balance < count * itemCfg.price) then
             return false, "Не хватает денег на счету"
         end
         local itemsCount = itemUtils.giveItem(itemCfg.id, itemCfg.dmg, count, itemCfg.nbt)
-
         if (itemsCount > 0) then
             playerData.balance = playerData.balance - itemsCount * itemCfg.price
             self.db:update(nick, playerData)
@@ -221,27 +210,23 @@ end
         return itemsCount, "Куплено " .. itemsCount .. " предметов!"
     end
 
-
     function obj:buyItem(nick, itemCfg, count)
-  print("[DEBUG] Попытка продажи:", nick, itemCfg.id, count)
-  local itemsCount = itemUtils.takeItem(itemCfg.id, itemCfg.dmg, count)
-  print("[DEBUG] Предметов принято:", itemsCount)
-
-  if itemsCount > 0 then
-    local playerData = self:getPlayerData(nick)
-    local oldBalance = playerData.balance
-    playerData.balance = oldBalance + (itemsCount * itemCfg.price)
-    
-    if not self.db:update(nick, playerData) then
-      print("[ERROR] Не удалось сохранить баланс!")
-      return 0, "Ошибка сервера"
+        print("[DEBUG] Попытка продажи:", nick, itemCfg.id, count)
+        local itemsCount = itemUtils.takeItem(itemCfg.id, itemCfg.dmg, count)
+        print("[DEBUG] Предметов принято:", itemsCount)
+        if itemsCount > 0 then
+            local playerData = self:getPlayerData(nick)
+            local oldBalance = playerData.balance
+            playerData.balance = oldBalance + (itemsCount * itemCfg.price)
+            if not self.db:update(nick, playerData) then
+                print("[ERROR] Не удалось сохранить баланс!")
+                return 0, "Ошибка сервера"
+            end
+            print("[DEBUG] Баланс изменён:", oldBalance, "->", playerData.balance)
+            return itemsCount, "Продано "..itemsCount.." предметов"
+        end
+        return 0, "Не удалось принять предметы"
     end
-    
-    print("[DEBUG] Баланс изменён:", oldBalance, "->", playerData.balance)
-    return itemsCount, "Продано "..itemsCount.." предметов"
-  end
-  return 0, "Не удалось принять предметы"
-end
 
     function obj:withdrawAll(nick)
         local playerData = self:getPlayerData(nick)
@@ -262,7 +247,6 @@ end
         for i = #toRemove, 1, -1 do
             table.remove(playerData.items, toRemove[i])
         end
-
         self.db:update(nick, playerData)
         if (sum == 0) then
             if (itemUtils.countOfAvailableSlots() > 0) then
@@ -283,7 +267,6 @@ end
             table.insert(items, item)
         end
         local itemsTaken = itemUtils.takeItems(items)
-
         local playerData = self:getPlayerData(nick)
         local sum = 0
         for i, item in pairs(itemsTaken) do
@@ -407,7 +390,8 @@ end
         return 0, "Нету вещей в инвентаре!"
     end
 
-    setmetatable(obj, self)
     obj:init()
-    self.__index = self; return obj
+    setmetatable(obj, self)
+    self.__index = self
+    return obj
 end

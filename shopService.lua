@@ -167,17 +167,21 @@ function ShopService:new(terminalName)
         end
     end
 
-    function obj:getPlayerData(nick)
-  print("[DEBUG] Загрузка данных для", nick)  -- Логирование
-  local playerDataList = self.db:select({self:dbClause("ID", nick, "=")})
-  
-  if not playerDataList or not playerDataList[1] then
-    print("[DEBUG] Новый игрок", nick)
-    return {balance = 0, items = {}}
-  end
-  
-  print("[DEBUG] Найден баланс:", playerDataList[1].balance)  -- Лог баланса
-  return playerDataList[1]
+function obj:getPlayerData(nick)
+    print("[DEBUG] Загрузка данных для", nick)
+    local playerDataList = self.db:select({self:dbClause("_id", nick, "=")})  -- Изменили "ID" на "_id"
+    
+    if not playerDataList or not playerDataList[1] then
+        print("[DEBUG] Создание нового игрока", nick)
+        local newPlayer = {_id = nick, balance = 0, items = {}}
+        if not self.db:insert(nick, newPlayer) then
+            print("[ERROR] Не удалось создать запись для нового игрока")
+        end
+        return newPlayer
+    end
+    
+    print("[DEBUG] Найден баланс:", playerDataList[1].balance)
+    return playerDataList[1]
 end
 
     function obj:withdrawItem(nick, id, dmg, count)

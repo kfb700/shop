@@ -219,17 +219,25 @@ function ShopService:new(terminalName)
 
 
     function obj:buyItem(nick, itemCfg, count)
-        local playerData = self:getPlayerData(nick)
+  print("[DEBUG] Попытка продажи:", nick, itemCfg.id, count)
+  local itemsCount = itemUtils.takeItem(itemCfg.id, itemCfg.dmg, count)
+  print("[DEBUG] Предметов принято:", itemsCount)
 
-        local itemsCount = itemUtils.takeItem(itemCfg.id, itemCfg.dmg, count)
-
-        if (itemsCount > 0) then
-            playerData.balance = playerData.balance + itemsCount * itemCfg.price
-            self.db:update(nick, playerData)
-            printD(terminalName .. ": Игрок " .. nick .. " продал " .. itemCfg.id .. ":" .. itemCfg.dmg .. " в количестве " .. itemsCount .. " по цене " .. itemCfg.price .. " за шт. Текущий баланс " .. playerData.balance)
-        end
-        return itemsCount, "Продано " .. itemsCount .. " предметов!"
+  if itemsCount > 0 then
+    local playerData = self:getPlayerData(nick)
+    local oldBalance = playerData.balance
+    playerData.balance = oldBalance + (itemsCount * itemCfg.price)
+    
+    if not self.db:update(nick, playerData) then
+      print("[ERROR] Не удалось сохранить баланс!")
+      return 0, "Ошибка сервера"
     end
+    
+    print("[DEBUG] Баланс изменён:", oldBalance, "->", playerData.balance)
+    return itemsCount, "Продано "..itemsCount.." предметов"
+  end
+  return 0, "Не удалось принять предметы"
+end
 
     function obj:withdrawAll(nick)
         local playerData = self:getPlayerData(nick)

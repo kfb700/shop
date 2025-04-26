@@ -168,17 +168,17 @@ function ShopService:new(terminalName)
     end
 
     function obj:getPlayerData(nick)
-        local playerDataList = self.db:select({ self:dbClause("ID", nick, "=") })
-        local playerData
-        if (not playerDataList or not playerDataList[1]) then
-            playerData = {}
-            playerData.balance = 0
-            playerData.items = {}
-        else
-            playerData = playerDataList[1]
-        end
-        return playerData
-    end
+  print("[DEBUG] Загрузка данных для", nick)  -- Логирование
+  local playerDataList = self.db:select({self:dbClause("ID", nick, "=")})
+  
+  if not playerDataList or not playerDataList[1] then
+    print("[DEBUG] Новый игрок", nick)
+    return {balance = 0, items = {}}
+  end
+  
+  print("[DEBUG] Найден баланс:", playerDataList[1].balance)  -- Лог баланса
+  return playerDataList[1]
+end
 
     function obj:withdrawItem(nick, id, dmg, count)
         local playerData = self:getPlayerData(nick)

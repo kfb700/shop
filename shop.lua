@@ -65,7 +65,7 @@ end
 function createAutorizationForm()
     local AutorizationForm = forms.addForm() -- создаем основную форму
     AutorizationForm.border = 1
-    local autorizationLabel = AutorizationForm:addLabel(23, 14, "Что б авторизаватся встаньте на PIM");
+    
 
     local authorLabel = AutorizationForm:addLabel(32, 25, " Автор: 3_1415926535 ")
     authorLabel.fontColor = 0x00FDFF
@@ -84,7 +84,7 @@ local nameLabel11 = AutorizationForm:addLabel(11, 13," ____) | | | | | | (_) | |
 local nameLabel12 = AutorizationForm:addLabel(11, 14,"|_____/  |_| |_|  \\___/  | .__/       ")
 local nameLabel13 = AutorizationForm:addLabel(11, 15,"                         | |          ")
 local nameLabel14 = AutorizationForm:addLabel(11, 16,"                         |_|          ")
-
+local autorizationLabel = AutorizationForm:addLabel(23, 14, "Встаньте на PIM");
     authorLabel.fontColor = 0x00FDFF
 
     return AutorizationForm
@@ -202,7 +202,7 @@ function createMainForm(nick)
     frameBalance.H = 7
 
     MainForm:addLabel(5, 4, "Ваш ник: ")
-    MainForm:addLabel(7, 4, nick)
+    MainForm:addLabel(17, 4, nick)
 
     MainForm:addLabel(5, 6, "Баланс: ")
     MainForm:addLabel(27, 6, shopService:getBalance(nick))

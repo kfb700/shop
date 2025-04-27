@@ -244,23 +244,23 @@ function createMainForm(nick)
         end)
     end, MainForm, "Снять")
 
-    local depositButton = MainForm:addButton(36, 4, "Пополнить баланс ", function()
-        itemCounterNumberSelectDepositBalanceForm:setActive()
-    end)
-    depositButton.W = 20
+   -- local depositButton = MainForm:addButton(36, 4, "Пополнить ", function()
+   --     itemCounterNumberSelectDepositBalanceForm:setActive()
+   -- end)
+   -- depositButton.W = 20
 
-    local withdrawButton = MainForm:addButton(36, 6, "Снять с баланса ", function()
-        itemCounterNumberSelectWithdrawBalanceForm:setActive()
-    end)
-    withdrawButton.W = 20
+  --  local withdrawButton = MainForm:addButton(36, 6, "Снять с баланса ", function()
+   --     itemCounterNumberSelectWithdrawBalanceForm:setActive()
+   -- end)
+   -- withdrawButton.W = 20
 
-    MainForm:addLabel(5, 8, "Количество предметов: ")
-    MainForm:addLabel(27, 8, shopService:getItemCount(nick))
+   -- MainForm:addLabel(5, 8, "Количество предметов: ")
+  --  MainForm:addLabel(27, 8, shopService:getItemCount(nick))
 
-    local withdrawButton = MainForm:addButton(36, 8, "Забрать предметы", function()
-        createGarbageForm()
-    end)
-    withdrawButton.W = 20
+   -- local withdrawButton = MainForm:addButton(36, 8, "Забрать предметы", function()
+   --     createGarbageForm()
+  --  end)
+  --  withdrawButton.W = 20
 
 local screenWidth = 80  -- Предполагаемая ширина экрана (может потребоваться подстройка)
 local buttonWidth = 34  -- Ширина каждой из двух верхних кнопок

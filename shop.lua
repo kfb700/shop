@@ -436,7 +436,7 @@ function createBuyShopForm()
                 MainForm = createMainForm(nickname)
                 MainForm:setActive()
             end),
-            createButton(" Продать ", 68, 23, function(selectedItem)
+            createButton(" Продать ", 55, 23, function(selectedItem)
                 if (selectedItem) then
                     local itemCounterNumberSelectForm = createNumberEditForm(function(count)
                         local _, message = shopService:buyItem(nickname, selectedItem, count)
@@ -447,6 +447,32 @@ function createBuyShopForm()
 
                     itemCounterNumberSelectForm:setActive()
                 end
+            end),
+            createButton(" Продать всё ", 68, 23, function()
+                local totalEarned = 0
+                local soldItems = 0
+                local failedItems = 0
+                
+                for _, item in ipairs(items) do
+                    if item.count > 0 then
+                        local success, message = shopService:buyItem(nickname, item, item.count)
+                        if success then
+                            totalEarned = totalEarned + (item.price * item.count)
+                            soldItems = soldItems + 1
+                        else
+                            failedItems = failedItems + 1
+                        end
+                    end
+                end
+                
+                local message = string.format("Продано %d предметов на сумму %.1f", soldItems, totalEarned)
+                if failedItems > 0 then
+                    message = message .. string.format("\nНе удалось продать %d предметов", failedItems)
+                end
+                
+                createNotification(nil, message, nil, function()
+                    createBuyShopForm()
+                end)
             end)
         })
 

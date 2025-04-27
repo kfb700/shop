@@ -18,10 +18,10 @@ Database.__index = Database
 ---local db = Database:new("players_data")
 function Database:new(directory)
     local obj = setmetatable({}, self)
-    obj.directory = directory
+    obj.directory = "/home/"..directory  -- Явно указываем полный путь
     
-    if not fs.exists(directory) then
-        fs.makeDirectory(directory)
+    if not fs.exists(obj.directory) then
+        fs.makeDirectory(obj.directory)
     end
     
     return obj
@@ -35,7 +35,7 @@ end
 ---@usage db:insert("player123", {balance = 500, items = {}})
 function Database:insert(key, value)
     local path = fs.concat(self.directory, tostring(key))
-    local file = io.open(path, 'w')
+    local file = io.open(path, "w")
     if not file then return false end
     
     value._id = key

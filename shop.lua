@@ -206,7 +206,7 @@ function createMainForm(nick)
     MainForm:addLabel(17, 4, nick)
 
     MainForm:addLabel(5, 6, "Баланс: ")
-    MainForm:addLabel(27, 6, shopService:getBalance(nick))
+    MainForm:addLabel(17, 6, shopService:getBalance(nick))
 
     local sellButton = MainForm:addButton(60, 5, " Выход ", function()
         AutorizationForm:setActive()

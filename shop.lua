@@ -266,19 +266,19 @@ local buyButton = MainForm:addButton(4, 17, " Купить ", function()
     createSellShopForm()
 end)
 buyButton.H = 3
-buyButton.W = 33
+buyButton.W = 34
 
-local depositButton = MainForm:addButton(40, 17, " Пополнить баланс ", function()
+local depositButton = MainForm:addButton(42, 17, " Пополнить баланс ", function()
     createBuyShopForm()
 end)
 depositButton.H = 3
-depositButton.W = 33
+depositButton.W = 34
 
 local rulesButton = MainForm:addButton(4, 21, " Используя магазин вы соглашаетесь с условиями ", function()
     RulesForm:setActive()
 end)
 rulesButton.H = 3
-rulesButton.W = 66
+rulesButton.W = 70
 
     return MainForm
 end

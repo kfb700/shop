@@ -262,13 +262,13 @@ function createMainForm(nick)
     end)
     withdrawButton.W = 20
 
-    local buyButton = MainForm:addButton(17, 17, " Купить ", function()
+    local buyButton = MainForm:addButton(4, 17, " Купить ", function()
         createSellShopForm()
     end)
     buyButton.H = 3
     buyButton.W = 33
 
-    local sellButton = MainForm:addButton(40, 17, " Пополнить баланс ", function()
+    local sellButton = MainForm:addButton(47, 17, " Пополнить баланс ", function()
         createBuyShopForm()
     end)
     sellButton.H = 3
@@ -277,7 +277,7 @@ function createMainForm(nick)
 
 
 
-    local sellButton = MainForm:addButton(17, 21, " Примечание ", function()
+    local sellButton = MainForm:addButton(4, 21, " Примечание ", function()
         RulesForm:setActive()
     end)
     sellButton.H = 3

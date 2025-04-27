@@ -132,6 +132,7 @@ function ShopService:new(terminalName)
     function obj:depositMoney(nick, count)
         local countOfMoney = itemUtils.takeMoney(count)
         if (countOfMoney > 0) then
+            analytics:recordTransaction(nick, countOfMoney, nil, true)
             local playerData = self:getPlayerData(nick)
             playerData.balance = playerData.balance + countOfMoney
             self.db:insert(nick, playerData)
@@ -205,6 +206,7 @@ function ShopService:new(terminalName)
         end
         local itemsCount = itemUtils.giveItem(itemCfg.id, itemCfg.dmg, count, itemCfg.nbt)
         if (itemsCount > 0) then
+            analytics:recordTransaction(nick, itemsCount*itemCfg.price, itemCfg.id, false)
             playerData.balance = playerData.balance - itemsCount * itemCfg.price
             self.db:update(nick, playerData)
             printD(terminalName .. ": Игрок " .. nick .. " купил " .. itemCfg.id .. ":" .. itemCfg.dmg .. " в количестве " .. itemsCount .. " по цене " .. itemCfg.price .. " за шт. Текущий баланс " .. playerData.balance)

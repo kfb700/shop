@@ -536,7 +536,7 @@ function createRulesForm()
     local shopFrame = ShopForm:addFrame(3, 5, 1)
     shopFrame.W = 76
     shopFrame.H = 18
-    local shopNameLabel = ShopForm:addLabel(33, 1, " PI Shop ")
+    local shopNameLabel = ShopForm:addLabel(33, 1, " Bober Shop ")
     shopNameLabel.fontColor = 0x00FDFF
     local authorLabel = ShopForm:addLabel(32, 25, " Автор: 3_1415926535 ")
     authorLabel.fontColor = 0x00FDFF
@@ -546,11 +546,13 @@ function createRulesForm()
     local ruleList = ShopForm:addList(5, 6, function()
     end)
 
-    ruleList:insert("1. Баланс на компьютерах разный, пользуйтесь одним магазином для удобства пользования! ")
-    ruleList:insert("2. При возникновении какого либо вопроса, обращайтесь к:")
-    ruleList:insert("   3_1415926535")
-    ruleList:insert("3. Вывод/ввод денег осуществляется кратно 1000")
-
+    ruleList:insert("1. Товар обмену и возврату не подлежит ")
+    ruleList:insert("2. При сбоях работы сервера возврат средств")
+    ruleList:insert("   осуществляется по решению hijabax")
+    ruleList:insert("3. В случае сбоя магазина (невыдача товара,")
+    ruleList:insert("   изчезновение баланса и т.д) магазин")
+    ruleList:insert("   обязуется решить проблему в течении 48 часов")
+    ruleList:insert("4. По всем вопросам можете обращаться к hijabax")
     ruleList.border = 0
     ruleList.W = 73
     ruleList.H = 15

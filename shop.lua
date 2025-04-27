@@ -262,19 +262,29 @@ function createMainForm(nick)
     end)
     withdrawButton.W = 20
 
-local buyButton = MainForm:addButton(4, 17, " Купить ", function()
+local screenWidth = 80  -- Предполагаемая ширина экрана (может потребоваться подстройка)
+local buttonWidth = 34  -- Ширина каждой из двух верхних кнопок
+local gap = 4           -- Расстояние между кнопками
+
+-- Рассчитываем позиции для кнопок "Купить" и "Пополнить баланс"
+local buyButtonX = (screenWidth - (2 * buttonWidth + gap)) // 2
+local depositButtonX = buyButtonX + buttonWidth + gap
+
+local buyButton = MainForm:addButton(buyButtonX, 17, " Купить ", function()
     createSellShopForm()
 end)
 buyButton.H = 3
-buyButton.W = 34
+buyButton.W = buttonWidth
 
-local depositButton = MainForm:addButton(42, 17, " Пополнить баланс ", function()
+local depositButton = MainForm:addButton(depositButtonX, 17, " Пополнить баланс ", function()
     createBuyShopForm()
 end)
 depositButton.H = 3
-depositButton.W = 34
+depositButton.W = buttonWidth
 
-local rulesButton = MainForm:addButton(4, 21, " Используя магазин вы соглашаетесь с условиями ", function()
+-- Кнопка с условиями (центрированная, занимает почти всю ширину)
+local rulesButtonX = (screenWidth - 70) // 2  -- Центрирование
+local rulesButton = MainForm:addButton(rulesButtonX, 21, " Используя магазин вы соглашаетесь с условиями ", function()
     RulesForm:setActive()
 end)
 rulesButton.H = 3

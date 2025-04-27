@@ -70,14 +70,20 @@ function createAutorizationForm()
     local authorLabel = AutorizationForm:addLabel(32, 25, " Автор: 3_1415926535 ")
     authorLabel.fontColor = 0x00FDFF
 
-    local nameLabel1 = AutorizationForm:addLabel(11, 3, " _                               _    _____ _                 ")
-    local nameLabel2 = AutorizationForm:addLabel(11, 4, "| |                             | |  / ____| |  ")
-    local nameLabel3 = AutorizationForm:addLabel(11, 5, "| |     ___  __ _  ___ _ __   __| | | (___ | |__   ___  _ __  ")
-    local nameLabel4 = AutorizationForm:addLabel(11, 6, "| |    / _ \\/ _` |/ _ \\ '_ \\ / _` |  \\___ \\| '_ \\ / _ \\| '_ \\ ")
-    local nameLabel5 = AutorizationForm:addLabel(11, 7, "| |___|  __/ (_| |  __/ | | | (_| |  ____) | | | | (_) | |_) |")
-    local nameLabel6 = AutorizationForm:addLabel(11, 8, "|______\\___|\\__, |\\___|_| |_|\\__,_| |_____/|_| |_|\\___/| .__/")
-    local nameLabel7 = AutorizationForm:addLabel(11, 9, "             __/ |                                     | |")
-    local nameLabel8 = AutorizationForm:addLabel(11, 10, "            |___/                                      |_|    ")
+local nameLabel1 = AutorizationForm:addLabel(11, 3, " ____            _                     ")
+local nameLabel2 = AutorizationForm:addLabel(11, 4, "|  _ \\          | |                    ")
+local nameLabel3 = AutorizationForm:addLabel(11, 5, "| |_) |   ___   | |__     ___   _ __   ")
+local nameLabel4 = AutorizationForm:addLabel(11, 6, "|  _ <   / _ \\  | '_ \\   / _ \\ | '__|  ")
+local nameLabel5 = AutorizationForm:addLabel(11, 7, "| |_) | | (_) | | |_) | |  __/ | |     ")
+local nameLabel6 = AutorizationForm:addLabel(11, 8, "|____/   \\___/  |_.__/   \\___| |_|     ")
+local nameLabel7 = AutorizationForm:addLabel(11, 9, "  _____   _                            ")
+local nameLabel8 = AutorizationForm:addLabel(11, 10," / ____| | |                           ")
+local nameLabel9 = AutorizationForm:addLabel(11, 11,"| (___   | |__     ___    _ __         ")
+local nameLabel10 = AutorizationForm:addLabel(11, 12," \\___ \\  | '_ \\   / _ \\  | '_ \\       ")
+local nameLabel11 = AutorizationForm:addLabel(11, 13," ____) | | | | | | (_) | | |_) |      ")
+local nameLabel12 = AutorizationForm:addLabel(11, 14,"|_____/  |_| |_|  \\___/  | .__/       ")
+local nameLabel13 = AutorizationForm:addLabel(11, 15,"                         | |          ")
+local nameLabel14 = AutorizationForm:addLabel(11, 16,"                         |_|          ")
 
     authorLabel.fontColor = 0x00FDFF
 

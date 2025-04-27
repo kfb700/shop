@@ -84,7 +84,8 @@ local nameLabel11 = AutorizationForm:addLabel(11, 13," ____) | | | | | | (_) | |
 local nameLabel12 = AutorizationForm:addLabel(11, 14,"|_____/  |_| |_|  \\___/  | .__/       ")
 local nameLabel13 = AutorizationForm:addLabel(11, 15,"                         | |          ")
 local nameLabel14 = AutorizationForm:addLabel(11, 16,"                         |_|          ")
-local autorizationLabel = AutorizationForm:addLabel(23, 14, "Встаньте на PIM");
+local nameLabel15 = AutorizationForm:addLabel(11, 17,"                      ")
+local nameLabel15 = AutorizationForm:addLabel(11, 18,"            Встаньте на PIM          ")
     authorLabel.fontColor = 0x00FDFF
 
     return AutorizationForm

@@ -267,29 +267,30 @@ local buttonWidth = 34  -- Ширина каждой из двух верхни�
 local gap = 4           -- Расстояние между кнопками
 
 -- Рассчитываем позиции для кнопок "Купить" и "Пополнить баланс"
+local buyButtonX = (screenWidth - (2 * buttonWidth + gap)) // 2
+local depositButtonX = buyButtonX + buttonWidth + gap
+
 local buyButton = MainForm:addButton(buyButtonX, 17, " Купить ", function()
     createSellShopForm()
 end)
 buyButton.H = 3
 buyButton.W = buttonWidth
-buyButton.fontColor = 0xFFFFFF  -- Белый текст
-buyButton.color = 0x00AA00      -- Зеленый фон
+
+
 
 local depositButton = MainForm:addButton(depositButtonX, 17, " Пополнить баланс ", function()
     createBuyShopForm()
 end)
 depositButton.H = 3
 depositButton.W = buttonWidth
-depositButton.fontColor = 0x000000  -- Черный текст
-depositButton.color = 0xFFFF00      -- Желтый фон
 
+-- Кнопка с условиями (центрированная, занимает почти всю ширину)
+local rulesButtonX = (screenWidth - 70) // 2  -- Центрирование
 local rulesButton = MainForm:addButton(rulesButtonX, 21, " Используя магазин вы соглашаетесь с условиями ", function()
     RulesForm:setActive()
 end)
 rulesButton.H = 3
 rulesButton.W = 70
-rulesButton.fontColor = 0xFF0000  -- Красный текст (для важных сообщений)
-rulesButton.color = 0x111111      -- Темно-серый фон
 
     return MainForm
 end

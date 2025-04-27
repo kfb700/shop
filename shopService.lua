@@ -3,6 +3,8 @@ local itemUtils = require('ItemUtils')
 local event = require('event')
 local Database = dofile('/home/Database.lua')
 local serialization = require("serialization")
+local Analytics = require("Analytics")
+local analytics = Analytics:new(Database:new("USERS"))
 
 ShopService = {}
 

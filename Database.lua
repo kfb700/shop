@@ -123,4 +123,18 @@ function Database:_checkCondition(a, b, op)
     return false
 end
 
+function Database:getAllBalances()
+    local users = {}
+    for file in fs.list(self.directory) do
+        local path = fs.concat(self.directory, file)
+        local data = serialization.unserialize(io.open(path):read("*a"))
+        table.insert(users, {
+            name = data._id,
+            balance = data.balance or 0
+        })
+    end
+    table.sort(users, function(a, b) return a.balance > b.balance end)
+    return users
+end
+
 return Database

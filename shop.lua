@@ -275,7 +275,7 @@ local buyButton = MainForm:addButton(buyButtonX, 17, " Купить ", function(
 end)
 buyButton.H = 3
 buyButton.W = buttonWidth
-buyButton.color = 0x82bf82      -- Зеленый фон
+buyButton.color = 0x006600      -- Зеленый фон
 buyButton.fontColor = 0xFFFFFF  -- Белый текст
 
 local depositButton = MainForm:addButton(depositButtonX, 17, " Пополнить баланс ", function()
@@ -283,7 +283,7 @@ local depositButton = MainForm:addButton(depositButtonX, 17, " Пополнит�
 end)
 depositButton.H = 3
 depositButton.W = buttonWidth
-depositButton.color = 0x87883f  -- Желтый фон
+depositButton.color = 0xFFA500  -- Желтый фон
 depositButton.fontColor = 0xFFFFFF -- Черный текст
 
 -- Кнопка с условиями (центрированная, занимает почти всю ширину)
@@ -293,8 +293,8 @@ local rulesButton = MainForm:addButton(rulesButtonX, 21, " Используя м
 end)
 rulesButton.H = 3
 rulesButton.W = 70
-rulesButton.color = 0xc1a49a  -- Желтый фон
-rulesButton.fontColor = 0xbd3305 -- Черный текст
+rulesButton.color = 0x333333  -- Желтый фон
+rulesButton.fontColor = 0xFF8F00 -- Черный текст
 
     return MainForm
 end

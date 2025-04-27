@@ -275,6 +275,9 @@ local buyButton = MainForm:addButton(buyButtonX, 17, " Купить ", function(
 end)
 buyButton.H = 3
 buyButton.W = buttonWidth
+gpu.setBackground(0x00AA00) -- Темно-зеленый
+gpu.setForeground(0xFFFFFF) -- Белый текст
+
 
 local depositButton = MainForm:addButton(depositButtonX, 17, " Пополнить баланс ", function()
     createBuyShopForm()
@@ -288,7 +291,7 @@ local rulesButton = MainForm:addButton(rulesButtonX, 21, " Используя м
     RulesForm:setActive()
 end)
 rulesButton.H = 3
-rulesButton.W = 70
+rulesButton.W = 72
 
     return MainForm
 end
@@ -539,7 +542,7 @@ function createRulesForm()
     local authorLabel = ShopForm:addLabel(32, 25, " Автор: 3_1415926535 ")
     authorLabel.fontColor = 0x00FDFF
 
-    local shopNameLabel = ShopForm:addLabel(35, 4, " Примечания ")
+    local shopNameLabel = ShopForm:addLabel(35, 4, " Условия ")
 
     local ruleList = ShopForm:addList(5, 6, function()
     end)

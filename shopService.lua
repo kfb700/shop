@@ -88,53 +88,50 @@ ShopService = {}
 -- Конфигурация Discord Webhook
 local DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1366871469526745148/oW2yVyCNevcBHrXAmvKM1506GIWWFKkQ3oqwa2nNjd_KNDTbDR_c6_6le9TBewpjnTqy"
 
--- Очередь сообщений и таймер
-local messageQueue = {}
-local lastSendTime = 0
-local BATCH_DELAY = 60 -- 60 секунд (1 минута)
+local function sendToDiscord(message)
+    -- Проверка интернет-карты
+    if not component.isAvailable("internet") then
+        print("❌ Интернет-карта не найдена!")
+        return false
+    end
 
-event.shouldInterrupt = function()
-    return false
-end
-
-local function sendBatchToDiscord()
-    if #messageQueue == 0 then return end
+    -- Формируем JSON сообщение
+    local jsonData = string.format('{"content":"%s","username":"Minecraft Shop"}', 
+        message:gsub('"', '\\"'))
     
-    local batchMessage = "**Отчет о действиях в магазине**\n" .. table.concat(messageQueue, "\n")
-    local jsonData = string.format('{"content":"%s"}', batchMessage:gsub('"', '\\"'))
-    
-    local success, err = pcall(function()
+    -- Отправка запроса
+    local success, response = pcall(function()
         local request = internet.request(
             DISCORD_WEBHOOK_URL,
             jsonData,
-            {["Content-Type"] = "application/json"},
+            {
+                ["Content-Type"] = "application/json",
+                ["User-Agent"] = "OC-Shop-Webhook"
+            },
             "POST"
         )
-        local response = request.finishConnect()
-        return response ~= nil
+        return request.finishConnect()
     end)
-    
-    if not success then
-        print("[DISCORD ERROR] " .. tostring(err))
-    else
-        -- Очищаем очередь после успешной отправки
-        messageQueue = {}
-        lastSendTime = os.time()
-    end
-end
 
-local function addToQueue(message)
-    table.insert(messageQueue, message)
-    
-    -- Если прошло больше BATCH_DELAY секунд с последней отправки
-    if os.time() - lastSendTime >= BATCH_DELAY then
-        sendBatchToDiscord()
+    -- Обработка результата
+    if success then
+        if response == 204 then
+            print("✅ Сообщение отправлено в Discord")
+            return true
+        else
+            print("⚠️ Discord вернул код:", response)
+            return false
+        end
+    else
+        print("❌ Ошибка отправки:")
+        print(response)
+        return false
     end
 end
 
 local function printD(message)
     print(message)
-    addToQueue(message)
+    sendToDiscord(message)
 end
 
 local function readObjectFromFile(path)
@@ -178,16 +175,8 @@ function ShopService:new(terminalName)
         self.db = Database:new("USERS")
         
         printD("🔄 " .. self.terminalName .. " инициализирован")
-        
-        -- Запускаем таймер для проверки очереди
-        event.timer(10, function()
-            if os.time() - lastSendTime >= BATCH_DELAY and #messageQueue > 0 then
-                sendBatchToDiscord()
-            end
-        end, math.huge)
     end
 
-    -- Остальные функции остаются без изменений
     function obj:dbClause(fieldName, fieldValue, typeOfClause)
         return {
             column = fieldName,

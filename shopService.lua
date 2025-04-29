@@ -76,28 +76,32 @@ local function sendHttpRequest(endpoint, data)
 end
 
 -- Функция чтения файла конфигурации
-local function readObjectFromFile(path)
+local function readConfigFile(path)
     if not filesystem.exists(path) then
         logDebug("File not found:", path)
-        return nil
+        return {}
     end
     
     local file = io.open(path, "r")
     if not file then
         logDebug("Failed to open file:", path)
-        return nil
+        return {}
     end
     
     local content = file:read("*a")
     file:close()
     
-    local success, obj = pcall(serialization.unserialize, content)
-    if not success then
-        logDebug("Failed to unserialize content from file:", path)
-        return nil
+    -- Обработка конфигурационных файлов
+    if path:find("sellShop.cfg") or path:find("buyShop.cfg") then
+        local success, result = pcall(serialization.unserialize, content)
+        if not success then
+            logDebug("Failed to unserialize content from file:", path)
+            return {}
+        end
+        return result
     end
     
-    return obj
+    return {}
 end
 
 -- Функция преобразования формата предметов
@@ -118,12 +122,10 @@ function ShopService:new(terminalName)
     function obj:init()
         self.terminalName = terminalName or "Unknown"
         
-        -- Загрузка конфигураций с автоматическим преобразованием формата
-        self.oreExchangeList = self:loadConfig("/home/config/oreExchanger.cfg")
-        self.exchangeList = self:loadConfig("/home/config/exchanger.cfg")
+        -- Загрузка конфигураций
         self.sellShopList = self:loadConfig("/home/config/sellShop.cfg")
         self.buyShopList = self:loadConfig("/home/config/buyShop.cfg")
-
+        
         -- Настройка валюты
         self.currencies = {
             {item = {name = "minecraft:gold_nugget", damage = 0}, money = 1000},
@@ -132,12 +134,14 @@ function ShopService:new(terminalName)
             {item = {name = "minecraft:emerald", damage = 0}, money = 1000000}
         }
 
-        itemUtils.setCurrency(self.currencies)
+        if itemUtils and itemUtils.setCurrency then
+            itemUtils.setCurrency(self.currencies)
+        end
     end
 
-    -- Функция загрузки конфига с поддержкой разных форматов
+    -- Функция загрузки конфига
     function obj:loadConfig(path)
-        local config = readObjectFromFile(path) or {}
+        local config = readConfigFile(path) or {}
         local converted = {}
         
         for _, item in ipairs(config) do
@@ -168,7 +172,7 @@ function ShopService:new(terminalName)
     end
 
     function obj:getSellShopList(category)
-        if not self.sellShopList then
+        if not self.sellShopList or #self.sellShopList == 0 then
             self.sellShopList = self:loadConfig("/home/config/sellShop.cfg")
         end
         
@@ -179,12 +183,15 @@ function ShopService:new(terminalName)
             end
         end
         
-        itemUtils.populateCount(filtered)
+        if itemUtils and itemUtils.populateCount then
+            itemUtils.populateCount(filtered)
+        end
+        
         return filtered
     end
 
     function obj:getBuyShopList(category)
-        if not self.buyShopList then
+        if not self.buyShopList or #self.buyShopList == 0 then
             self.buyShopList = self:loadConfig("/home/config/buyShop.cfg")
         end
         
@@ -195,11 +202,18 @@ function ShopService:new(terminalName)
             end
         end
         
-        itemUtils.populateUserCount(filtered)
+        if itemUtils and itemUtils.populateUserCount then
+            itemUtils.populateUserCount(filtered)
+        end
+        
         return filtered
     end
 
     function obj:depositMoney(nick, count)
+        if not itemUtils or not itemUtils.takeMoney then
+            return 0, "ItemUtils not properly initialized"
+        end
+        
         local countOfMoney = itemUtils.takeMoney(count)
         if countOfMoney > 0 then
             -- Логируем транзакцию
@@ -234,6 +248,10 @@ function ShopService:new(terminalName)
             return 0, "Не хватает денег на счету"
         end
         
+        if not itemUtils or not itemUtils.giveMoney then
+            return 0, "ItemUtils not properly initialized"
+        end
+        
         local countOfMoney = itemUtils.giveMoney(count)
         if countOfMoney > 0 then
             -- Логируем транзакцию
@@ -259,7 +277,11 @@ function ShopService:new(terminalName)
         return 0, "Не удалось выдать деньги"
     end
 
-    function obj:buyItem(nick, itemCfg, count)
+    function obj:sellItem(nick, itemCfg, count)
+        if not itemUtils or not itemUtils.takeItem then
+            return 0, "ItemUtils not properly initialized"
+        end
+        
         logDebug("Attempting to sell:", itemCfg.id, count)
         local itemsCount = itemUtils.takeItem(itemCfg.id, itemCfg.dmg, count)
         
@@ -288,17 +310,24 @@ function ShopService:new(terminalName)
             if response and response.success then
                 logDebug("Sold items:", itemsCount)
                 return itemsCount, "Продано " .. itemsCount .. " предметов"
+            else
+                itemUtils.giveItem(itemCfg.id, itemCfg.dmg, itemsCount)
+                return 0, "Ошибка при обновлении баланса"
             end
         end
         return 0, "Не удалось продать предметы"
     end
 
-    function obj:sellItem(nick, itemCfg, count)
+    function obj:buyItem(nick, itemCfg, count)
         local playerData = self:getPlayerData(nick)
         local totalCost = count * itemCfg.price
         
         if playerData.balance < totalCost then
             return 0, "Не хватает денег на счету"
+        end
+        
+        if not itemUtils or not itemUtils.giveItem then
+            return 0, "ItemUtils not properly initialized"
         end
         
         local itemsCount = itemUtils.giveItem(itemCfg.id, itemCfg.dmg, count)

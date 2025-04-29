@@ -21,6 +21,12 @@ local nickname = ""
 
 local timer
 
+local dbTest = Database:new("TEST")
+local testResult = dbTest:select({{column = "_id", value = "test", operation = "="}})
+if not testResult then
+    error("Не удалось подключиться к базе данных. Проверьте настройки MySQL.")
+end
+
 function createNotification(status, text, secondText, callback)
     local notificationForm = forms:addForm()
     notificationForm.border = 2

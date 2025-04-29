@@ -35,7 +35,7 @@ local function sendHttpRequest(url, data)
         end
         
         return json.decode(result) or {}
-    end)
+    end
     
     if not success then
         print("[HTTP ERROR] " .. tostring(response))

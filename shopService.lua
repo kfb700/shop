@@ -32,19 +32,12 @@ local function logDebug(...)
     print("[DEBUG] " .. message)
 end
 
--- Функция кодирования Base64
-local function base64encode(data)
-    local b = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
-    return ((data:gsub('.', function(x) 
-        local r, b = '', x:byte()
-        for i = 8, 1, -1 do r = r .. (b % 2^i - b % 2^(i-1) > 0 and '1' or '0') end
-        return r
-    end)..'0000'):gsub('%d%d%d?%d?%d?%d?', function(x)
-        if (#x < 6) then return '' end
-        local c = 0
-        for i = 1, 6 do c = c + (x:sub(i,i) == '1' and 2^(6-i) or 0) end
-        return b:sub(c+1, c+1)
-    end)..({ '', '==', '=' })[#data % 3 + 1])
+-- Функция преобразования в число
+local function toNumber(value)
+    if type(value) == "number" then
+        return value
+    end
+    return tonumber(value) or 0
 end
 
 -- Улучшенная функция отправки HTTP запроса
@@ -79,12 +72,7 @@ local function sendHttpRequest(endpoint, data)
         return {success = false, error = "JSON decode failed: " .. response}
     end
     
-    if not response.success then
-        logDebug("Server returned error:", response.error or "Unknown error")
-        return {success = false, error = response.error or "Unknown error"}
-    end
-    
-    return response
+    return response or {success = false, error = "Invalid server response"}
 end
 
 -- Функция чтения файла конфигурации
@@ -118,12 +106,6 @@ function ShopService:new(terminalName)
     function obj:init()
         self.terminalName = terminalName or "Unknown"
         
-        -- Создаем папку USERS если ее нет
-        if not filesystem.exists("/home/USERS") then
-            filesystem.makeDirectory("/home/USERS")
-            logDebug("Created USERS directory")
-        end
-        
         -- Загрузка конфигураций
         self.oreExchangeList = readObjectFromFile("/home/config/oreExchanger.cfg") or {}
         self.exchangeList = readObjectFromFile("/home/config/exchanger.cfg") or {}
@@ -143,45 +125,36 @@ function ShopService:new(terminalName)
 
     -- Основные методы магазина
     
-    function obj:getOreExchangeList()
-        return self.oreExchangeList
-    end
-
-    function obj:getExchangeList()
-        return self.exchangeList
-    end
-
-    function obj:getSellShopList(category)
-        local categorySellShopList = {}
-        for i, sellConfig in pairs(self.sellShopList) do
-            if sellConfig.category == category then
-                table.insert(categorySellShopList, sellConfig)
-            end
-        end
-        itemUtils.populateCount(categorySellShopList)
-        return categorySellShopList
-    end
-
-    function obj:getBuyShopList()
-        itemUtils.populateUserCount(self.buyShopList)
-        return self.buyShopList
-    end
-
-    function obj:getBalance(nick)
+    function obj:getPlayerData(nick)
         local response = sendHttpRequest(HTTP_API_CONFIG.endpoints.player, {
             action = "get",
             player_id = nick
         })
         
         if response and response.success then
-            return response.balance or 0
+            response.balance = toNumber(response.balance)
+            return response
         end
-        return 0
+        return {balance = 0, items = {}}
+    end
+
+    function obj:getBalance(nick)
+        local playerData = self:getPlayerData(nick)
+        return playerData.balance
     end
 
     function obj:depositMoney(nick, count)
         local countOfMoney = itemUtils.takeMoney(count)
         if countOfMoney > 0 then
+            -- Логируем транзакцию
+            sendHttpRequest(HTTP_API_CONFIG.endpoints.transaction, {
+                player_id = nick,
+                transaction_type = "deposit",
+                amount = countOfMoney,
+                timestamp = os.time()
+            })
+            
+            -- Обновляем баланс
             local response = sendHttpRequest(HTTP_API_CONFIG.endpoints.player, {
                 action = "update",
                 player_id = nick,
@@ -197,17 +170,22 @@ function ShopService:new(terminalName)
     end
 
     function obj:withdrawMoney(nick, count)
-        local playerData = sendHttpRequest(HTTP_API_CONFIG.endpoints.player, {
-            action = "get",
-            player_id = nick
-        })
-        
-        if not playerData or playerData.balance < count then
+        local playerData = self:getPlayerData(nick)
+        if playerData.balance < count then
             return 0, "Не хватает денег на счету"
         end
         
         local countOfMoney = itemUtils.giveMoney(count)
         if countOfMoney > 0 then
+            -- Логируем транзакцию
+            sendHttpRequest(HTTP_API_CONFIG.endpoints.transaction, {
+                player_id = nick,
+                transaction_type = "withdraw",
+                amount = countOfMoney,
+                timestamp = os.time()
+            })
+            
+            -- Обновляем баланс
             local response = sendHttpRequest(HTTP_API_CONFIG.endpoints.player, {
                 action = "update",
                 player_id = nick,
@@ -223,11 +201,25 @@ function ShopService:new(terminalName)
     end
 
     function obj:buyItem(nick, itemCfg, count)
-        logDebug("Attempting to buy:", itemCfg.id, count)
+        logDebug("Attempting to sell:", itemCfg.id, count)
         local itemsCount = itemUtils.takeItem(itemCfg.id, itemCfg.dmg, count)
         
         if itemsCount > 0 then
             local totalPrice = itemsCount * itemCfg.price
+            
+            -- Логируем транзакцию
+            sendHttpRequest(HTTP_API_CONFIG.endpoints.transaction, {
+                player_id = nick,
+                transaction_type = "sell_item",
+                item_id = itemCfg.id,
+                item_dmg = itemCfg.dmg,
+                item_name = itemCfg.label,
+                quantity = itemsCount,
+                amount = totalPrice,
+                timestamp = os.time()
+            })
+            
+            -- Обновляем баланс
             local response = sendHttpRequest(HTTP_API_CONFIG.endpoints.player, {
                 action = "update",
                 player_id = nick,
@@ -243,18 +235,28 @@ function ShopService:new(terminalName)
     end
 
     function obj:sellItem(nick, itemCfg, count)
-        local playerData = sendHttpRequest(HTTP_API_CONFIG.endpoints.player, {
-            action = "get",
-            player_id = nick
-        })
+        local playerData = self:getPlayerData(nick)
+        local totalCost = count * itemCfg.price
         
-        if not playerData or playerData.balance < count * itemCfg.price then
+        if playerData.balance < totalCost then
             return 0, "Не хватает денег на счету"
         end
         
         local itemsCount = itemUtils.giveItem(itemCfg.id, itemCfg.dmg, count)
         if itemsCount > 0 then
-            local totalCost = itemsCount * itemCfg.price
+            -- Логируем транзакцию
+            sendHttpRequest(HTTP_API_CONFIG.endpoints.transaction, {
+                player_id = nick,
+                transaction_type = "buy_item",
+                item_id = itemCfg.id,
+                item_dmg = itemCfg.dmg,
+                item_name = itemCfg.label,
+                quantity = itemsCount,
+                amount = totalCost,
+                timestamp = os.time()
+            })
+            
+            -- Обновляем баланс
             local response = sendHttpRequest(HTTP_API_CONFIG.endpoints.player, {
                 action = "update",
                 player_id = nick,

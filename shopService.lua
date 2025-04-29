@@ -15,7 +15,7 @@ local HTTP_API_CONFIG = {
         player = "player.php",
         transaction = "transaction.php",
         item = "item.php",
-        log = "log.php" -- Новый endpoint для логирования
+        log = "log.php"
     },
     credentials = {
         username = "068004",
@@ -53,7 +53,7 @@ local function sendHttpRequest(endpoint, data)
     local request, reason = internet.request(url, json.encode(data), {
         ["Content-Type"] = "application/json",
         ["User-Agent"] = "OCShopSystem/1.0"
-    })
+    }
     
     if not request then
         logDebug("HTTP request failed:", reason)
@@ -78,15 +78,15 @@ end
 
 -- Функция для логирования операций в MySQL
 local function logOperation(operationType, playerId, data)
+    local terminalAddress = component and component.computer and component.computer.address() or "unknown"
     local logData = {
         operation_type = operationType,
         player_id = playerId,
-        terminal = component.computer.address(),
+        terminal = terminalAddress,
         timestamp = os.time(),
         data = data or {}
     }
     
-    -- Добавляем дополнительную информацию, если она доступна
     if data and data.item_id then
         logData.item_id = data.item_id
         logData.item_dmg = data.item_dmg or 0
@@ -103,11 +103,12 @@ local function logOperation(operationType, playerId, data)
         action = "log",
         log_type = operationType,
         player_id = playerId,
+        terminal_address = terminalAddress,
         log_data = logData
     })
     
     if not response or not response.success then
-        logDebug("Failed to log operation:", operationType, "for player:", playerId)
+        logDebug("Failed to log operation:", operationType, "for player:", playerId, "Error:", response and response.error or "unknown")
     end
 end
 
@@ -127,7 +128,6 @@ local function readConfigFile(path)
     local content = file:read("*a")
     file:close()
     
-    -- Обработка конфигурационных файлов
     if path:find("sellShop.cfg") or path:find("buyShop.cfg") then
         local success, result = pcall(serialization.unserialize, content)
         if not success then
@@ -286,85 +286,96 @@ function ShopService:new(terminalName)
         
         local countOfMoney = itemUtils.takeMoney(count)
         if countOfMoney > 0 then
-            -- Логируем операцию
             logOperation("deposit_start", nick, {amount = countOfMoney})
             
-            -- Логируем транзакцию
-            sendHttpRequest(HTTP_API_CONFIG.endpoints.transaction, {
-                player_id = nick,
-                transaction_type = "deposit",
-                amount = countOfMoney,
-                timestamp = os.time()
-            })
-            
-            -- Обновляем баланс
             local response = sendHttpRequest(HTTP_API_CONFIG.endpoints.player, {
-                action = "update",
+                action = "update_balance",
                 player_id = nick,
-                data = {balance = countOfMoney}
+                amount = countOfMoney
             })
             
             if response and response.success then
                 logDebug("Deposited money:", countOfMoney)
-                logOperation("deposit_success", nick, {amount = countOfMoney, new_balance = self:getBalance(nick)})
+                logOperation("deposit_success", nick, {
+                    amount = countOfMoney, 
+                    new_balance = self:getBalance(nick)
+                })
                 return countOfMoney, "Баланс пополнен на " .. countOfMoney
             else
                 itemUtils.giveMoney(countOfMoney)
-                logOperation("deposit_failed", nick, {amount = countOfMoney, error = "Balance update failed"})
+                logOperation("deposit_failed", nick, {
+                    amount = countOfMoney, 
+                    error = response and response.error or "Balance update failed"
+                })
                 return 0, "Ошибка при пополнении баланса"
             end
         end
         
-        logOperation("deposit_failed", nick, {amount = countOfMoney, error = "No money in inventory"})
+        logOperation("deposit_failed", nick, {amount = count, error = "No money in inventory"})
         return 0, "Нет монет в инвентаре!"
     end
 
     function obj:withdrawMoney(nick, count)
         local playerData = self:getPlayerData(nick)
         if playerData.balance < count then
-            logOperation("withdraw_failed", nick, {amount = count, error = "Insufficient balance", current_balance = playerData.balance})
+            logOperation("withdraw_failed", nick, {
+                amount = count, 
+                error = "Insufficient balance", 
+                current_balance = playerData.balance
+            })
             return 0, "Не хватает денег на счету"
         end
         
         if not itemUtils or not itemUtils.giveMoney then
-            logOperation("withdraw_failed", nick, {amount = count, error = "ItemUtils not initialized"})
+            logOperation("withdraw_failed", nick, {
+                amount = count, 
+                error = "ItemUtils not initialized"
+            })
             return 0, "ItemUtils not properly initialized"
         end
         
         local countOfMoney = itemUtils.giveMoney(count)
         if countOfMoney > 0 then
-            -- Логируем операцию
             logOperation("withdraw_start", nick, {amount = countOfMoney})
             
-            -- Логируем транзакцию
-            sendHttpRequest(HTTP_API_CONFIG.endpoints.transaction, {
-                player_id = nick,
-                transaction_type = "withdraw",
-                amount = countOfMoney,
-                timestamp = os.time()
-            })
-            
-            -- Обновляем баланс
             local response = sendHttpRequest(HTTP_API_CONFIG.endpoints.player, {
-                action = "update",
+                action = "update_balance",
                 player_id = nick,
-                data = {balance = -countOfMoney}
+                amount = -countOfMoney
             })
             
             if response and response.success then
                 logDebug("Withdrew money:", countOfMoney)
-                logOperation("withdraw_success", nick, {amount = countOfMoney, new_balance = self:getBalance(nick)})
+                logOperation("withdraw_success", nick, {
+                    amount = countOfMoney, 
+                    new_balance = self:getBalance(nick)
+                })
                 return countOfMoney, "Снято с баланса: " .. countOfMoney
+            else
+                itemUtils.takeMoney(countOfMoney)
+                logOperation("withdraw_failed", nick, {
+                    amount = countOfMoney, 
+                    error = response and response.error or "Balance update failed"
+                })
+                return 0, "Не удалось обновить баланс"
             end
         end
         
-        logOperation("withdraw_failed", nick, {amount = count, error = "Failed to give money"})
+        logOperation("withdraw_failed", nick, {
+            amount = count, 
+            error = "Failed to give money"
+        })
         return 0, "Не удалось выдать деньги"
     end
 
     function obj:sellItem(nick, itemCfg, count)
         if not itemUtils or not itemUtils.takeItem then
-            logOperation("sell_failed", nick, {item_id = itemCfg.id, item_dmg = itemCfg.dmg, quantity = count, error = "ItemUtils not initialized"})
+            logOperation("sell_failed", nick, {
+                item_id = itemCfg.id, 
+                item_dmg = itemCfg.dmg, 
+                quantity = count, 
+                error = "ItemUtils not initialized"
+            })
             return 0, "ItemUtils not properly initialized"
         end
         
@@ -374,7 +385,6 @@ function ShopService:new(terminalName)
         if itemsCount > 0 then
             local totalPrice = itemsCount * itemCfg.price
             
-            -- Логируем операцию
             logOperation("sell_start", nick, {
                 item_id = itemCfg.id,
                 item_dmg = itemCfg.dmg,
@@ -384,23 +394,10 @@ function ShopService:new(terminalName)
                 total_price = totalPrice
             })
             
-            -- Логируем транзакцию
-            sendHttpRequest(HTTP_API_CONFIG.endpoints.transaction, {
-                player_id = nick,
-                transaction_type = "sell_item",
-                item_id = itemCfg.id,
-                item_dmg = itemCfg.dmg,
-                item_name = itemCfg.label,
-                quantity = itemsCount,
-                amount = totalPrice,
-                timestamp = os.time()
-            })
-            
-            -- Обновляем баланс
             local response = sendHttpRequest(HTTP_API_CONFIG.endpoints.player, {
-                action = "update",
+                action = "update_balance",
                 player_id = nick,
-                data = {balance = totalPrice}
+                amount = totalPrice
             })
             
             if response and response.success then
@@ -421,7 +418,7 @@ function ShopService:new(terminalName)
                     item_dmg = itemCfg.dmg,
                     item_name = itemCfg.label,
                     quantity = itemsCount,
-                    error = "Balance update failed"
+                    error = response and response.error or "Balance update failed"
                 })
                 return 0, "Ошибка при обновлении баланса"
             end
@@ -468,7 +465,6 @@ function ShopService:new(terminalName)
         
         local itemsCount = itemUtils.giveItem(itemCfg.id, itemCfg.dmg, count)
         if itemsCount > 0 then
-            -- Логируем операцию
             logOperation("buy_start", nick, {
                 item_id = itemCfg.id,
                 item_dmg = itemCfg.dmg,
@@ -478,33 +474,10 @@ function ShopService:new(terminalName)
                 total_cost = totalCost
             })
             
-            -- Логируем предмет
-            local itemResponse = sendHttpRequest(HTTP_API_CONFIG.endpoints.item, {
-                action = "update",
-                player_id = nick,
-                item_id = itemCfg.id,
-                item_dmg = itemCfg.dmg,
-                item_name = itemCfg.label,
-                delta = itemsCount
-            })
-            
-            -- Логируем транзакцию
-            local transactionResponse = sendHttpRequest(HTTP_API_CONFIG.endpoints.transaction, {
-                player_id = nick,
-                transaction_type = "buy_item",
-                item_id = itemCfg.id,
-                item_dmg = itemCfg.dmg,
-                item_name = itemCfg.label,
-                quantity = itemsCount,
-                amount = totalCost,
-                timestamp = os.time()
-            })
-            
-            -- Обновляем баланс
             local balanceResponse = sendHttpRequest(HTTP_API_CONFIG.endpoints.player, {
-                action = "update",
+                action = "update_balance",
                 player_id = nick,
-                data = {balance = -totalCost}
+                amount = -totalCost
             })
             
             if balanceResponse and balanceResponse.success then
@@ -525,7 +498,7 @@ function ShopService:new(terminalName)
                     item_dmg = itemCfg.dmg,
                     item_name = itemCfg.label,
                     quantity = itemsCount,
-                    error = "Balance update failed"
+                    error = balanceResponse and balanceResponse.error or "Balance update failed"
                 })
                 return 0, "Ошибка при обновлении баланса"
             end
@@ -585,7 +558,6 @@ function ShopService:new(terminalName)
         
         local itemsCount = itemUtils.giveItem(id, dmg or 0, count)
         if itemsCount > 0 then
-            -- Логируем операцию
             logOperation("withdraw_item_start", nick, {
                 item_id = id,
                 item_dmg = dmg,
@@ -593,7 +565,6 @@ function ShopService:new(terminalName)
                 quantity = itemsCount
             })
             
-            -- Обновляем предмет
             local response = sendHttpRequest(HTTP_API_CONFIG.endpoints.item, {
                 action = "update",
                 player_id = nick,
@@ -616,7 +587,7 @@ function ShopService:new(terminalName)
                     item_id = id,
                     item_dmg = dmg,
                     quantity = itemsCount,
-                    error = "Storage update failed"
+                    error = response and response.error or "Storage update failed"
                 })
                 return 0, "Ошибка при обновлении хранилища"
             end
@@ -677,7 +648,6 @@ function ShopService:new(terminalName)
         local totalTake = count * item.fromCount
         local totalGive = count * item.toCount
         
-        -- Логируем начало операции
         logOperation("exchange_ore_start", nick, {
             from_item = item.from,
             from_dmg = item.fromDmg or 0,
@@ -703,7 +673,7 @@ function ShopService:new(terminalName)
         
         local given = itemUtils.giveItem(item.to, item.toDmg or 0, totalGive)
         if given < totalGive then
-            itemUtils.giveItem(item.from, item.fromDmg or 0, taken) -- Возвращаем обратно
+            itemUtils.giveItem(item.from, item.fromDmg or 0, taken)
             logOperation("exchange_ore_failed", nick, {
                 from_item = item.from,
                 from_dmg = item.fromDmg or 0,
@@ -780,7 +750,6 @@ function ShopService:new(terminalName)
         local totalTake = count * item.fromCount
         local totalGive = count * item.toCount
         
-        -- Логируем начало операции
         logOperation("exchange_start", nick, {
             from_item = item.from,
             from_dmg = item.fromDmg or 0,
@@ -808,7 +777,7 @@ function ShopService:new(terminalName)
         
         local given = itemUtils.giveItem(item.to, item.toDmg or 0, totalGive)
         if given < totalGive then
-            itemUtils.giveItem(item.from, item.fromDmg or 0, taken) -- Возвращаем обратно
+            itemUtils.giveItem(item.from, item.fromDmg or 0, taken)
             logOperation("exchange_failed", nick, {
                 from_item = item.from,
                 from_dmg = item.fromDmg or 0,

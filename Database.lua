@@ -1,157 +1,63 @@
----@module Database
--- Файловая база данных для OpenComputers с поддержкой сериализации.
--- Хранит данные в виде файлов в указанной директории.
--- @license MIT
--- @author YourName
-local fs = require('filesystem')
-local serialization = require('serialization')
+local component = require("component")
+local serialization = require("serialization")
 
-local Database = {}
-Database.__index = Database
+Database = {}
 
---- Создает новый экземпляр базы данных.
----@function new
----@classmod Database
----@param directory string Путь к директории для хранения данных
----@return Database новый экземпляр
----@usage local Database = require('database')
----local db = Database:new("players_data")
-Database = {
-    new = function(self, tableName)
-        local db = component.proxy(component.list("database")())
-        if not db then error("Не найдена база данных") end
-        
-        -- Создаём таблицы при первом запуске
-        if not db.get(tableName .. "_players") then
-            db.set(tableName .. "_players", {})
-        end
-        if not db.get(tableName .. "_items") then
-            db.set(tableName .. "_items", {})
-        end
-        if not db.get(tableName .. "_transactions") then
-            db.set(tableName .. "_transactions", {})
-        end
-        
-        return {
-            select = function(_, query) return db.get(tableName .. "_players") end,
-            insert = function(_, id, data) 
-                local players = db.get(tableName .. "_players") or {}
-                players[id] = data
-                db.set(tableName .. "_players", players)
-                return true
-            end,
-            update = function(_, id, data) 
-                return self:insert(id, data)
-            end
-        }
-    end
-}
-
-function Database:new(directory)
-    local obj = setmetatable({}, self)
-    obj.directory = "/home/"..directory  -- Явно указываем полный путь
+function Database:new(tableName)
+    local db = component.proxy(component.list("database")())
+    if not db then error("Database component not found") end
     
-    if not fs.exists(obj.directory) then
-        fs.makeDirectory(obj.directory)
+    local function ensureTable()
+        if not db.get(tableName) then
+            db.set(tableName, {})
+        end
     end
     
-    return obj
-end
-
---- Сохраняет или полностью заменяет данные по ключу.
----@function insert
----@param key string|number Уникальный идентификатор записи
----@param value table Данные для сохранения (таблица)
----@return boolean true при успешной записи
----@usage db:insert("player123", {balance = 500, items = {}})
-function Database:insert(key, value)
-    local path = fs.concat(self.directory, tostring(key))
-    local file = io.open(path, "w")
-    if not file then return false end
+    ensureTable()
     
-    value._id = key
-    local serialized = serialization.serialize(value)
-    file:write(serialized)
-    file:close()
-    return true
-end
-
---- Обновляет данные по ключу (полная перезапись).
----@function update
----@param key string|number Уникальный идентификатор записи
----@param value table Новые данные для записи
----@return boolean true при успешном обновлении
----@see insert
----@usage db:update("player123", {balance = 600, items = {}})
-function Database:update(key, value)
-    return self:insert(key, value)
-end
-
---- Ищет записи по заданным условиям.
----@function select
----@param conditions table[] Список условий в формате {column, value, operation}
----@return table[] Массив найденных записей
----@usage 
---local results = db:select({
---     {column = "balance", value = 1000, operation = ">"},
---     {column = "vip", value = true}
--- })
-function Database:select(conditions)
-    local results = {}
+    local methods = {}
     
-    for file in fs.list(self.directory) do
-        local path = fs.concat(self.directory, file)
-        local fh = io.open(path, 'r')
-        if fh then
-            local data = fh:read('*a')
-            fh:close()
-            local ok, record = pcall(serialization.unserialize, data)
-            
-            if ok and record then
-                local match = true
-                for _, condition in ipairs(conditions or {}) do
-                    local field = condition.column
-                    local value = condition.value
-                    local operation = condition.operation or "=="
-                    
-                    if not self:_checkCondition(record[field], value, operation) then
+    function methods:select(query)
+        local data = db.get(tableName) or {}
+        if not query or #query == 0 then
+            return data
+        end
+        
+        local results = {}
+        for id, record in pairs(data) do
+            local match = true
+            for _, clause in ipairs(query) do
+                if clause.operation == "=" then
+                    if record[clause.column] ~= clause.value then
                         match = false
                         break
                     end
                 end
-                
-                if match then
-                    table.insert(results, record)
-                end
+            end
+            if match then
+                table.insert(results, record)
             end
         end
+        return results
     end
     
-    return results
-end
-
---- (Приватный) Проверяет условие для фильтрации.
----@function _checkCondition
----@local
----@param a any Значение из записи
----@param b any Сравниваемое значение
----@param op string Оператор сравнения
----@return boolean Результат проверки
-function Database:_checkCondition(a, b, op)
-    if op == "=" or op == "==" then
-        return a == b
-    elseif op == "~=" or op == "!=" then
-        return a ~= b
-    elseif op == "<" then
-        return a < b
-    elseif op == "<=" then
-        return a <= b
-    elseif op == ">" then
-        return a > b
-    elseif op == ">=" then
-        return a >= b
+    function methods:insert(id, data)
+        local allData = db.get(tableName) or {}
+        allData[id] = data
+        return db.set(tableName, allData)
     end
-    return false
+    
+    function methods:update(id, data)
+        return self:insert(id, data)
+    end
+    
+    function methods:delete(id)
+        local allData = db.get(tableName) or {}
+        allData[id] = nil
+        return db.set(tableName, allData)
+    end
+    
+    return methods
 end
 
 return Database

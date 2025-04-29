@@ -163,14 +163,24 @@ function ShopService:new(terminalName)
     end
 
     function obj:getPlayerData(nick)
+        print("[DEBUG] Загрузка данных для", nick)
         local playerDataList = self.db:select({self:dbClause("_id", nick, "=")})
         
-        if not playerDataList or not playerDataList[1] then
-            local newPlayer = {_id = nick, balance = 0, items = {}}
-            self.db:insert(nick, newPlayer)
+        if not playerDataList or #playerDataList == 0 then
+            print("[DEBUG] Создание нового игрока", nick)
+            local newPlayer = {
+                _id = nick, 
+                balance = 0, 
+                items = {},
+                created = os.time()
+            }
+            if not self.db:insert(nick, newPlayer) then
+                error("Не удалось создать запись для нового игрока")
+            end
             return newPlayer
         end
         
+        print("[DEBUG] Найден игрок:", serialization.serialize(playerDataList[1]))
         return playerDataList[1]
     end
 

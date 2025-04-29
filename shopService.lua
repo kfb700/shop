@@ -178,8 +178,16 @@ function ShopService:new(terminalName)
         self.db = Database:new("USERS")
         
         printD("🔄 " .. self.terminalName .. " инициализирован")
+        
+        -- Запускаем таймер для проверки очереди
+        event.timer(10, function()
+            if os.time() - lastSendTime >= BATCH_DELAY and #messageQueue > 0 then
+                sendBatchToDiscord()
+            end
+        end, math.huge)
     end
 
+    -- Остальные функции остаются без изменений
     function obj:dbClause(fieldName, fieldValue, typeOfClause)
         return {
             column = fieldName,
@@ -511,25 +519,6 @@ function ShopService:new(terminalName)
     setmetatable(obj, self)
     self.__index = self
     return obj
-end
-
--- Запускаем периодическую проверку очереди
-local function queueChecker()
-    while true do
-        os.sleep(10) -- Проверяем каждые 10 секунд
-        if os.time() - lastSendTime >= BATCH_DELAY and #messageQueue > 0 then
-            sendBatchToDiscord()
-        end
-    end
-end
-
--- Запускаем проверку очереди в отдельном потоке
-local ok, err = pcall(function()
-    event.timer(10, queueChecker, math.huge)
-end)
-
-if not ok then
-    print("⚠️ Не удалось запустить проверку очереди:", err)
 end
 
 return ShopService

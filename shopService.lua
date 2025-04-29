@@ -5,7 +5,7 @@ local internet = require('internet')
 local serialization = require("serialization")
 local fs = require('filesystem')
 
--- Модуль Database (остается без изменений)
+-- Модуль Database
 local Database = {}
 Database.__index = Database
 
@@ -81,69 +81,71 @@ function Database:select(conditions)
     return results
 end
 
--- Теперь определяем ShopService
-ShopService = {}
-
--- Конфигурация Discord Webhook
-local DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1366871469526745148/oW2yVyCNevcBHrXAmvKM1506GIWWFKkQ3oqwa2nNjd_KNDTbDR_c6_6le9TBewpjnTqy"
-
+-- Улучшенная функция отправки в Discord
 local function sendToDiscord(message)
-    -- Добавляем проверку интернет-соединения
+    -- Проверка наличия интернет-карты
     if not component.isAvailable("internet") then
-        print("Internet card not available")
+        print("Ошибка: Интернет-карта не доступна")
         return false
     end
 
-    local jsonData = {
+    local webhookUrl = "https://discord.com/api/webhooks/1366871469526745148/oW2yVyCNevcBHrXAmvKM1506GIWWFKkQ3oqwa2nNjd_KNDTbDR_c6_6le9TBewpjnTqy"
+    
+    local payload = {
         content = message,
         username = "Minecraft Shop",
         avatar_url = "https://www.minecraft.net/content/dam/minecraft/touchup-2020/minecraft-logo.svg"
     }
 
-    local serialized = serialization.serialize(jsonData)
+    local serialized = serialization.serialize(payload)
     local headers = {
         ["Content-Type"] = "application/json",
-        ["User-Agent"] = "OC-Minecraft-Shop"
+        ["User-Agent"] = "OC-Minecraft-Shop/1.0"
     }
 
-    local success, response = pcall(function()
-        local request = internet.request(DISCORD_WEBHOOK_URL, serialized, headers, "POST")
-        -- Добавляем таймаут и обработку ответа
-        for i = 1, 10 do -- 10 попыток
-            local result = request.finishConnect()
-            if result then 
-                return true
-            end
-            os.sleep(0.5) -- Пауза между попытками
-        end
-        return false
-    end)
-
-    if not success then
-        print("Discord send error:", response)
-        return false
-    end
-    return true
-end
-
-local function printD(message)
-    print(message) -- Всегда выводим в консоль
-    
-    -- Пытаемся отправить в Discord с 3 попытками
+    -- Попытки отправки с таймаутом
     for attempt = 1, 3 do
-        if sendToDiscord(message) then
-            break
+        local success, response = pcall(function()
+            local request = internet.request(webhookUrl, serialized, headers, "POST")
+            
+            -- Ожидание ответа с таймаутом
+            for i = 1, 5 do
+                local result = request.finishConnect()
+                if result ~= nil then
+                    return true
+                end
+                os.sleep(0.5)
+            end
+            return false
+        end)
+
+        if success and response then
+            return true
         else
-            print("Attempt", attempt, "failed. Retrying...")
-            os.sleep(1)
+            print("Попытка", attempt, "не удалась:", response or "нет ответа")
+            os.sleep(1) -- Пауза между попытками
         end
+    end
+    
+    return false
+end
+
+-- Функция логирования
+local function printD(message)
+    print(message) -- Всегда логируем в консоль
+    
+    -- Отправляем в Discord с обработкой ошибок
+    local discordSuccess = sendToDiscord(message)
+    if not discordSuccess then
+        print("Не удалось отправить сообщение в Discord")
     end
 end
 
+-- Функция чтения файлов конфигурации
 local function readObjectFromFile(path)
     local file, err = io.open(path, "r")
     if not file then
-        return nil, "Failed to open file: " .. (err or "unknown error")
+        return nil, "Не удалось открыть файл: " .. (err or "неизвестная ошибка")
     end
   
     local content = file:read("*a")
@@ -151,23 +153,28 @@ local function readObjectFromFile(path)
   
     local obj = serialization.unserialize(content)
     if not obj then
-        return nil, "Failed to unserialize content from file"
+        return nil, "Не удалось десериализовать содержимое файла"
     end
   
     return obj
 end
 
+-- Основной модуль ShopService
+ShopService = {}
+
 function ShopService:new(terminalName)
     local obj = {}
     
     function obj:init()
-        self.terminalName = terminalName or "Unknown Terminal"
+        self.terminalName = terminalName or "Неизвестный терминал"
         
+        -- Загрузка конфигураций
         self.oreExchangeList = readObjectFromFile("/home/config/oreExchanger.cfg") or {}
         self.exchangeList = readObjectFromFile("/home/config/exchanger.cfg") or {}
         self.sellShopList = readObjectFromFile("/home/config/sellShop.cfg") or {}
         self.buyShopList = readObjectFromFile("/home/config/buyShop.cfg") or {}
 
+        -- Настройка валют
         self.currencies = {
             {item = {name = "minecraft:gold_nugget", damage = 0}, money = 1000},
             {item = {name = "minecraft:gold_ingot", damage = 0}, money = 10000},
@@ -180,9 +187,10 @@ function ShopService:new(terminalName)
         -- Инициализация базы данных
         self.db = Database:new("USERS")
         
-        printD("🔄 " .. self.terminalName .. " инициализирован")
+        printD("🔄 Терминал " .. self.terminalName .. " успешно инициализирован")
     end
 
+    -- Вспомогательная функция для создания условий запроса
     function obj:dbClause(fieldName, fieldValue, typeOfClause)
         return {
             column = fieldName,
@@ -191,6 +199,7 @@ function ShopService:new(terminalName)
         }
     end
 
+    -- Получение списков предметов
     function obj:getOreExchangeList()
         return self.oreExchangeList
     end
@@ -215,6 +224,7 @@ function ShopService:new(terminalName)
         return self.buyShopList
     end
 
+    -- Работа с балансом
     function obj:getBalance(nick)
         local playerData = self:getPlayerData(nick)
         return playerData and playerData.balance or 0
@@ -259,6 +269,7 @@ function ShopService:new(terminalName)
         return 0, itemUtils.countOfAvailableSlots() > 0 and "Нет монет в магазине!" or "Освободите инвентарь!"
     end
 
+    -- Работа с данными игрока
     function obj:getPlayerData(nick)
         local playerDataList = self.db:select({self:dbClause("_id", nick)})
         
@@ -275,6 +286,7 @@ function ShopService:new(terminalName)
         return playerDataList[1]
     end
 
+    -- Работа с предметами
     function obj:withdrawItem(nick, id, dmg, count)
         local playerData = self:getPlayerData(nick)
         for i = 1, #playerData.items do
@@ -368,6 +380,7 @@ function ShopService:new(terminalName)
         return sum, "Выдано " .. sum .. " предметов"
     end
 
+    -- Система обмена
     function obj:exchangeAllOres(nick)
         local items = {}
         for _, itemConfig in pairs(self.oreExchangeList) do
@@ -510,6 +523,7 @@ function ShopService:new(terminalName)
         return 0, "Нет предметов в инвентаре!"
     end
 
+    -- Инициализация объекта
     obj:init()
     setmetatable(obj, self)
     self.__index = self

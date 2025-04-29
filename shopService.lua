@@ -11,9 +11,9 @@ ShopService = {}
 local HTTP_API_CONFIG = {
     baseUrl = "http://r-2-veteran.online/www/r-2-veteran.online/shop_api",
     endpoints = {
-        player = "/player.php",
-        transaction = "/transaction.php",
-        item = "/item.php"
+        player = "player.php",
+        transaction = "transaction.php",
+        item = "item.php"
     },
     credentials = {
         username = "068004",

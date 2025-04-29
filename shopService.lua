@@ -38,8 +38,14 @@ local function sendHttpRequest(endpoint, data)
                "?auth_user=" .. HTTP_API_CONFIG.credentials.username ..
                "&auth_pass=" .. HTTP_API_CONFIG.credentials.password
     
-    logDebug("Sending request to:", url)
-    logDebug("Request data:", serialization.serialize(data))
+    logDebug("Отправка запроса на:", url)
+    logDebug("Данные запроса:", serialization.serialize(data))
+    
+    -- Проверяем, доступен ли интернет
+    if not internet then
+        logDebug("Ошибка: нет доступа к интернету")
+        return {success = false, error = "Нет интернета"}
+    end
     
     local request, reason = internet.request(url, json.encode(data), {
         ["Content-Type"] = "application/json",
@@ -47,24 +53,32 @@ local function sendHttpRequest(endpoint, data)
     })
     
     if not request then
-        logDebug("HTTP request failed:", reason)
-        return {success = false, error = "HTTP request failed: " .. (reason or "unknown reason")}
+        logDebug("Ошибка HTTP-запроса:", reason)
+        return {success = false, error = "Ошибка запроса: " .. (reason or "неизвестно")}
     end
     
+    -- Читаем ответ
     local result = ""
     for chunk in request do
         result = result .. chunk
     end
     
-    logDebug("Raw response:", result)
+    logDebug("Ответ сервера:", result)
     
-    local success, response = pcall(json.decode, result)
-    if not success then
-        logDebug("JSON decode failed:", response)
-        return {success = false, error = "JSON decode failed: " .. response}
+    -- Проверяем, не вернул ли сервер HTML с ошибкой
+    if result:find("<h>Warning</h>") or result:find("<br />") then
+        logDebug("Сервер вернул ошибку в HTML:", result)
+        return {success = false, error = "Сервер выдал ошибку (проверь логи)"}
     end
     
-    return response or {success = false, error = "Invalid server response"}
+    -- Пытаемся распарсить JSON
+    local success, response = pcall(json.decode, result)
+    if not success then
+        logDebug("Ошибка декодирования JSON:", response)
+        return {success = false, error = "Сервер вернул не JSON: " .. response}
+    end
+    
+    return response or {success = false, error = "Пустой ответ сервера"}
 end
 
 -- Функция для логирования транзакций
@@ -118,18 +132,29 @@ function ShopService:new(terminalName)
     
     function obj:init()
         self.terminalName = terminalName or "Unknown"
+        
+        -- Загружаем конфиги с проверкой
         self.oreExchangeList = readObjectFromFile("/home/config/oreExchanger.cfg") or {}
         self.exchangeList = readObjectFromFile("/home/config/exchanger.cfg") or {}
         self.sellShopList = readObjectFromFile("/home/config/sellShop.cfg") or {}
         self.buyShopList = readObjectFromFile("/home/config/buyShop.cfg") or {}
-
+        
+        -- Если конфиги пустые, пишем в лог
+        if #self.oreExchangeList == 0 then
+            logDebug("Внимание: oreExchanger.cfg пуст или не загружен!")
+        end
+        if #self.sellShopList == 0 then
+            logDebug("Внимание: sellShop.cfg пуст или не загружен!")
+        end
+        
+        -- Валюта
         self.currencies = {
             {item = {name = "minecraft:gold_nugget", damage = 0}, money = 1000},
             {item = {name = "minecraft:gold_ingot", damage = 0}, money = 10000},
             {item = {name = "minecraft:diamond", damage = 0}, money = 100000},
             {item = {name = "minecraft:emerald", damage = 0}, money = 1000000}
         }
-
+        
         itemUtils.setCurrency(self.currencies)
     end
 
@@ -263,86 +288,82 @@ function ShopService:new(terminalName)
         end
     end
 
-    function obj:buyItem(nick, itemCfg, count)
-        local playerData = self:getPlayerData(nick)
-        local totalCost = count * itemCfg.price
-        
-        if playerData.balance < totalCost then
-            return 0, "Не хватает денег на счету"
-        end
-        
-        local itemsCount = itemUtils.giveItem(itemCfg.id, itemCfg.dmg or 0, count)
-        if itemsCount > 0 then
-            local oldBalance = playerData.balance
-            playerData.balance = oldBalance - totalCost
-            
-            -- Обновляем баланс
-            local balanceResponse = sendHttpRequest(HTTP_API_CONFIG.endpoints.player, {
-                action = "update",
-                player_id = nick,
-                data = {balance = -totalCost}
-            })
-            
-            -- Логируем предмет
-            local itemResponse = sendHttpRequest(HTTP_API_CONFIG.endpoints.item, {
-                action = "update",
-                player_id = nick,
-                item_id = itemCfg.id,
-                item_dmg = itemCfg.dmg or 0,
-                item_name = itemCfg.label or itemCfg.id,
-                delta = itemsCount
-            })
-            
-            if balanceResponse and balanceResponse.success then
-                logTransaction(nick, "buy", {
-                    id = itemCfg.id,
-                    dmg = itemCfg.dmg or 0,
-                    label = itemCfg.label or itemCfg.id,
-                    count = itemsCount,
-                    price = itemCfg.price
-                }, totalCost, oldBalance, playerData.balance)
-                
-                return itemsCount, "Куплено " .. itemsCount .. " предметов"
-            else
-                itemUtils.takeItem(itemCfg.id, itemCfg.dmg or 0, itemsCount)
-                return 0, "Ошибка при обновлении баланса"
-            end
-        end
-        return 0, "Не удалось купить предметы"
+    -- Покупка предмета (игрок тратит деньги)
+function obj:buyItem(nick, itemCfg, count)
+    local playerData = self:getPlayerData(nick)
+    local totalCost = count * itemCfg.price
+    
+    if playerData.balance < totalCost then
+        return 0, "Не хватает денег на счету"
     end
+    
+    -- Даём предмет игроку
+    local itemsCount = itemUtils.giveItem(itemCfg.id, itemCfg.dmg or 0, count)
+    if itemsCount > 0 then
+        local oldBalance = playerData.balance
+        playerData.balance = oldBalance - totalCost  -- Уменьшаем баланс
+        
+        -- Отправляем запрос на обновление баланса
+        local response = sendHttpRequest(HTTP_API_CONFIG.endpoints.player, {
+            action = "update",
+            player_id = nick,
+            data = {balance = -totalCost}  -- Минус, потому что списываем
+        })
+        
+        if response and response.success then
+            logTransaction(nick, "buy", {
+                id = itemCfg.id,
+                dmg = itemCfg.dmg or 0,
+                label = itemCfg.label or itemCfg.id,
+                count = itemsCount,
+                price = itemCfg.price
+            }, totalCost, oldBalance, playerData.balance)
+            
+            return itemsCount, "Куплено " .. itemsCount .. " предметов"
+        else
+            -- Откатываем, если ошибка
+            itemUtils.takeItem(itemCfg.id, itemCfg.dmg or 0, itemsCount)
+            return 0, "Ошибка при обновлении баланса"
+        end
+    end
+    return 0, "Не удалось купить предметы"
+end
 
-    function obj:sellItem(nick, itemCfg, count)
-        local itemsCount = itemUtils.takeItem(itemCfg.id, itemCfg.dmg or 0, count)
-        if itemsCount > 0 then
-            local playerData = self:getPlayerData(nick)
-            local oldBalance = playerData.balance
-            local totalPrice = itemsCount * itemCfg.price
-            playerData.balance = oldBalance + totalPrice
+    -- Продажа предмета (игрок получает деньги)
+function obj:sellItem(nick, itemCfg, count)
+    -- Забираем предмет у игрока
+    local itemsCount = itemUtils.takeItem(itemCfg.id, itemCfg.dmg or 0, count)
+    if itemsCount > 0 then
+        local playerData = self:getPlayerData(nick)
+        local oldBalance = playerData.balance
+        local totalPrice = itemsCount * itemCfg.price
+        playerData.balance = oldBalance + totalPrice  -- Увеличиваем баланс
+        
+        -- Отправляем запрос на обновление баланса
+        local response = sendHttpRequest(HTTP_API_CONFIG.endpoints.player, {
+            action = "update",
+            player_id = nick,
+            data = {balance = totalPrice}  -- Плюс, потому что зачисляем
+        })
+        
+        if response and response.success then
+            logTransaction(nick, "sell", {
+                id = itemCfg.id,
+                dmg = itemCfg.dmg or 0,
+                label = itemCfg.label or itemCfg.id,
+                count = itemsCount,
+                price = itemCfg.price
+            }, totalPrice, oldBalance, playerData.balance)
             
-            -- Обновляем баланс
-            local response = sendHttpRequest(HTTP_API_CONFIG.endpoints.player, {
-                action = "update",
-                player_id = nick,
-                data = {balance = totalPrice}
-            })
-            
-            if response and response.success then
-                logTransaction(nick, "sell", {
-                    id = itemCfg.id,
-                    dmg = itemCfg.dmg or 0,
-                    label = itemCfg.label or itemCfg.id,
-                    count = itemsCount,
-                    price = itemCfg.price
-                }, totalPrice, oldBalance, playerData.balance)
-                
-                return itemsCount, "Продано " .. itemsCount .. " предметов"
-            else
-                itemUtils.giveItem(itemCfg.id, itemCfg.dmg or 0, itemsCount)
-                return 0, "Ошибка при обновлении баланса"
-            end
+            return itemsCount, "Продано " .. itemsCount .. " предметов"
+        else
+            -- Откатываем, если ошибка
+            itemUtils.giveItem(itemCfg.id, itemCfg.dmg or 0, itemsCount)
+            return 0, "Ошибка при обновлении баланса"
         end
-        return 0, "Не удалось продать предметы"
     end
+    return 0, "Не удалось продать предметы"
+end
 
     function obj:withdrawAll(nick)
         local playerData = self:getPlayerData(nick)

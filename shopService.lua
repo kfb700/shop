@@ -3,9 +3,184 @@ local itemUtils = require('ItemUtils')
 local event = require('event')
 local Database = dofile('/home/Database.lua')
 local serialization = require("serialization")
+local mysql = require("luasql.mysql")
 
 ShopService = {}
 
+-- Конфигурация MySQL
+local MYSQL_CONFIG = {
+    host = "r-2-veteran.online",
+    user = "u2902019_shopmc",
+    password = "zZ!53579",
+    database = "u2902019_shopmc",
+    port = 3306
+}
+
+-- Класс для работы с MySQL
+local MySQLLogger = {}
+MySQLLogger.__index = MySQLLogger
+
+function MySQLLogger:new(config)
+    local obj = {
+        config = config or MYSQL_CONFIG,
+        env = nil,
+        conn = nil,
+        transactionBuffer = {},
+        lastSync = os.time()
+    }
+    setmetatable(obj, self)
+    obj:initConnection()
+    return obj
+end
+
+function MySQLLogger:initConnection()
+    self.env = mysql.mysql()
+    self.conn = self.env:connect(self.config.database, self.config.user, 
+                               self.config.password, self.config.host, self.config.port)
+    if not self.conn then
+        print("[MySQL] Failed to connect to database")
+        return false
+    end
+    return true
+end
+
+function MySQLLogger:ensureConnection()
+    if not self.conn or not self.conn:ping() then
+        return self:initConnection()
+    end
+    return true
+end
+
+function MySQLLogger:logTransaction(player_id, transaction_type, item_id, item_name, quantity, amount, details)
+    table.insert(self.transactionBuffer, {
+        player_id = player_id,
+        transaction_type = transaction_type,
+        item_id = item_id,
+        item_name = item_name,
+        quantity = quantity,
+        amount = amount,
+        details = details,
+        timestamp = os.date("%Y-%m-%d %H:%M:%S")
+    })
+end
+
+function MySQLLogger:syncTransactions()
+    if #self.transactionBuffer == 0 then return true end
+    
+    if not self:ensureConnection() then
+        print("[MySQL] Connection failed, retrying next time")
+        return false
+    end
+
+    local success, err = pcall(function()
+        -- Начинаем транзакцию
+        self.conn:execute("START TRANSACTION")
+        
+        -- Создаем временную таблицу для балансов
+        self.conn:execute([[
+            CREATE TEMPORARY TABLE temp_balances (
+                player_id VARCHAR(36) PRIMARY KEY,
+                balance_change DECIMAL(15,2) NOT NULL DEFAULT 0
+            )
+        ]])
+        
+        -- Вставляем данные транзакций
+        for _, t in ipairs(self.transactionBuffer) do
+            local query = string.format([[
+                INSERT INTO transaction_history 
+                (player_id, transaction_type, item_id, item_name, quantity, amount, details, transaction_time) 
+                VALUES ('%s', '%s', %s, %s, %d, %.2f, '%s', '%s')
+            ]], 
+            self.conn:escape(t.player_id), 
+            self.conn:escape(t.transaction_type),
+            t.item_id and string.format("'%s'", self.conn:escape(t.item_id)) or 'NULL',
+            t.item_name and string.format("'%s'", self.conn:escape(t.item_name)) or 'NULL',
+            t.quantity or 0,
+            t.amount or 0,
+            self.conn:escape(t.details or ""),
+            t.timestamp)
+            
+            self.conn:execute(query)
+            
+            -- Записываем изменения баланса во временную таблицу
+            if t.transaction_type == 'deposit' then
+                self.conn:execute(string.format([[
+                    INSERT INTO temp_balances (player_id, balance_change) 
+                    VALUES ('%s', %.2f)
+                    ON DUPLICATE KEY UPDATE balance_change = balance_change + %.2f
+                ]], self.conn:escape(t.player_id), t.amount, t.amount))
+            elseif t.transaction_type == 'withdraw' then
+                self.conn:execute(string.format([[
+                    INSERT INTO temp_balances (player_id, balance_change) 
+                    VALUES ('%s', %.2f)
+                    ON DUPLICATE KEY UPDATE balance_change = balance_change - %.2f
+                ]], self.conn:escape(t.player_id), t.amount, t.amount))
+            end
+        end
+        
+        -- Обновляем балансы игроков
+        self.conn:execute([[
+            INSERT INTO player_balances (player_id, nickname, balance)
+            SELECT player_id, player_id, balance_change FROM temp_balances
+            ON DUPLICATE KEY UPDATE balance = balance + VALUES(balance)
+        ]])
+        
+        -- Фиксируем транзакцию
+        self.conn:execute("COMMIT")
+        
+        -- Очищаем буфер
+        self.transactionBuffer = {}
+        self.lastSync = os.time()
+    end)
+    
+    if not success then
+        self.conn:execute("ROLLBACK")
+        print("[MySQL] Sync error:", err)
+        return false
+    end
+    
+    return true
+end
+
+function MySQLLogger:close()
+    if self.conn then
+        self.conn:close()
+    end
+    if self.env then
+        self.env:close()
+    end
+end
+
+-- Создаем экземпляр логгера
+local mysqlLogger = MySQLLogger:new()
+
+-- Запускаем периодическую синхронизацию (раз в минуту)
+event.timer(60, function()
+    mysqlLogger:syncTransactions()
+end, math.huge)
+
+-- Функция для логирования транзакций
+local function logTransaction(player_id, transaction_type, item_id, item_name, quantity, amount, details)
+    mysqlLogger:logTransaction(player_id, transaction_type, item_id, item_name, quantity, amount, details)
+    
+    -- Также сохраняем в файл на случай проблем с MySQL
+    local logEntry = string.format("[%s] %s %s: %s x%d (%.2f) - %s\n",
+        os.date("%Y-%m-%d %H:%M:%S"),
+        player_id,
+        transaction_type,
+        item_name or item_id or "money",
+        quantity or 1,
+        amount or 0,
+        details or "")
+    
+    local logFile = io.open("/home/shop_transactions.log", "a")
+    if logFile then
+        logFile:write(logEntry)
+        logFile:close()
+    end
+end
+
+-- Инициализация Telegram логгеров (оставляем для совместимости)
 local telegramLog_buy = require('TelegramLog'):new({telegramToken = "", message_thread_id = 00, chatId = 000})
 local telegramLog_sell = require('TelegramLog'):new({telegramToken = "", message_thread_id = 00, chatId = 000})
 local telegramLog_OreExchange = require('TelegramLog'):new({telegramToken = "", message_thread_id = 00, chatId = 000})
@@ -133,6 +308,11 @@ function ShopService:new(terminalName)
             local playerData = self:getPlayerData(nick)
             playerData.balance = playerData.balance + countOfMoney
             self.db:insert(nick, playerData)
+            
+            -- Логируем пополнение баланса
+            logTransaction(nick, "deposit", nil, "money", nil, countOfMoney, 
+                          "Пополнение баланса через терминал " .. terminalName)
+            
             printD(terminalName .. ": Игрок " .. nick .. " пополнил баланс на " .. countOfMoney .. " Текущий баланс " .. playerData.balance)
             return playerData.balance, "Баланс пополнен на " .. countOfMoney
         end
@@ -148,6 +328,11 @@ function ShopService:new(terminalName)
         if (countOfMoney > 0) then
             playerData.balance = playerData.balance - countOfMoney
             self.db:insert(nick, playerData)
+            
+            -- Логируем снятие денег
+            logTransaction(nick, "withdraw", nil, "money", nil, countOfMoney,
+                         "Снятие денег через терминал " .. terminalName)
+            
             printD(terminalName .. ": Игрок " .. nick .. " снял с баланса " .. countOfMoney .. ". Текущий баланс " .. playerData.balance)
             return countOfMoney, "C баланса списанно " .. countOfMoney
         end
@@ -203,8 +388,15 @@ function ShopService:new(terminalName)
         end
         local itemsCount = itemUtils.giveItem(itemCfg.id, itemCfg.dmg, count, itemCfg.nbt)
         if (itemsCount > 0) then
-            playerData.balance = playerData.balance - itemsCount * itemCfg.price
+            local totalPrice = itemsCount * itemCfg.price
+            playerData.balance = playerData.balance - totalPrice
             self.db:update(nick, playerData)
+            
+            -- Логируем покупку предмета
+            logTransaction(nick, "purchase", itemCfg.id, itemCfg.label or itemCfg.id, 
+                          itemsCount, totalPrice,
+                          "Покупка через терминал " .. terminalName)
+            
             printD(terminalName .. ": Игрок " .. nick .. " купил " .. itemCfg.id .. ":" .. itemCfg.dmg .. " в количестве " .. itemsCount .. " по цене " .. itemCfg.price .. " за шт. Текущий баланс " .. playerData.balance)
         end
         return itemsCount, "Куплено " .. itemsCount .. " предметов!"
@@ -217,11 +409,18 @@ function ShopService:new(terminalName)
         if itemsCount > 0 then
             local playerData = self:getPlayerData(nick)
             local oldBalance = playerData.balance
-            playerData.balance = oldBalance + (itemsCount * itemCfg.price)
+            local totalPrice = itemsCount * itemCfg.price
+            playerData.balance = oldBalance + totalPrice
             if not self.db:update(nick, playerData) then
                 print("[ERROR] Не удалось сохранить баланс!")
                 return 0, "Ошибка сервера"
             end
+            
+            -- Логируем продажу предмета
+            logTransaction(nick, "sale", itemCfg.id, itemCfg.label or itemCfg.id,
+                         itemsCount, totalPrice,
+                         "Продажа через терминал " .. terminalName)
+            
             print("[DEBUG] Баланс изменён:", oldBalance, "->", playerData.balance)
             return itemsCount, "Продано "..itemsCount.." предметов"
         end
@@ -242,6 +441,11 @@ function ShopService:new(terminalName)
             end
             if (withdrawedCount > 0) then
                 printD(terminalName .. ": Игрок " .. nick .. " забрал " .. item.id .. ":" .. item.dmg .. " в количестве " .. withdrawedCount)
+                
+                -- Логируем изъятие предмета
+                logTransaction(nick, "withdraw", item.id, item.label or item.id,
+                             withdrawedCount, 0,
+                             "Изъятие предметов через терминал " .. terminalName)
             end
         end
         for i = #toRemove, 1, -1 do
@@ -279,6 +483,13 @@ function ShopService:new(terminalName)
                 end
             end
             printD(terminalName .. ": Игрок " .. nick .. " обменял на слитки " .. itemCfg.fromId .. ":" .. itemCfg.fromDmg .. " в количестве " .. item.count .. " по курсу " .. itemCfg.fromCount .. "к" .. itemCfg.toCount)
+            
+            -- Логируем обмен руды
+            logTransaction(nick, "exchange", itemCfg.fromId, itemCfg.fromLabel or itemCfg.fromId,
+                         item.count, 0,
+                         "Обмен руды на " .. (itemCfg.toLabel or itemCfg.toId) .. 
+                         " по курсу " .. itemCfg.fromCount .. ":" .. itemCfg.toCount)
+            
             local itemAlreadyInFile = false
             for i = 1, #playerData.items do
                 local itemP = playerData.items[i]
@@ -309,6 +520,13 @@ function ShopService:new(terminalName)
         local countOfItems = itemUtils.takeItem(itemConfig.fromId, itemConfig.fromDmg, count)
         if (countOfItems > 0) then
             local playerData = self:getPlayerData(nick)
+            
+            -- Логируем обмен руды
+            logTransaction(nick, "exchange", itemConfig.fromId, itemConfig.fromLabel or itemConfig.fromId,
+                         countOfItems, 0,
+                         "Обмен руды на " .. (itemConfig.toLabel or itemConfig.toId) .. 
+                         " по курсу " .. itemConfig.fromCount .. ":" .. itemConfig.toCount)
+            
             local itemAlreadyInFile = false
             for i = 1, #playerData.items do
                 local item = playerData.items[i]
@@ -362,6 +580,13 @@ function ShopService:new(terminalName)
         end
         if (countOfExchanges > 0) then
             save = true
+            
+            -- Логируем обмен предметов
+            logTransaction(nick, "exchange", itemConfig.fromId, itemConfig.fromLabel or itemConfig.fromId,
+                         countOfItems, 0,
+                         "Обмен на " .. (itemConfig.toLabel or itemConfig.toId) .. 
+                         " по курсу " .. itemConfig.fromCount .. ":" .. itemConfig.toCount)
+            
             local itemAlreadyInFile = false
             for i = 1, #playerData.items do
                 local item = playerData.items[i]

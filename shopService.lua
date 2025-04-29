@@ -15,7 +15,7 @@ local HTTP_API_CONFIG = {
         player = "player.php",
         transaction = "transaction.php",
         item = "item.php",
-        log = "log.php" -- Новый endpoint для логирования
+        log = "log.php"
     },
     credentials = {
         username = "068004",
@@ -78,36 +78,53 @@ end
 
 -- Функция для логирования операций в MySQL
 local function logOperation(operationType, playerId, data)
+    -- Проверяем, что playerId существует и является строкой
+    if not playerId or type(playerId) ~= "string" then
+        playerId = "unknown"
+    end
+    
+    -- Безопасное получение адреса компьютера
+    local terminalAddress = "unknown"
+    if component and component.computer and component.computer.address then
+        terminalAddress = component.computer.address()
+    end
+    
     local logData = {
         operation_type = operationType,
         player_id = playerId,
-        terminal = component.computer.address(),
+        terminal = terminalAddress,
         timestamp = os.time(),
         data = data or {}
     }
     
     -- Добавляем дополнительную информацию, если она доступна
-    if data and data.item_id then
-        logData.item_id = data.item_id
-        logData.item_dmg = data.item_dmg or 0
-        logData.item_name = data.item_name or data.item_id
+    if data then
+        if data.item_id then
+            logData.item_id = data.item_id
+            logData.item_dmg = data.item_dmg or 0
+            logData.item_name = data.item_name or data.item_id
+        end
         logData.quantity = data.quantity or 0
         logData.price = data.price or 0
+        logData.amount = data.amount or 0
     end
     
-    if data and data.amount then
-        logData.amount = data.amount
-    end
+    -- Защита от бесконечной рекурсии при ошибках логирования
+    local status, err = pcall(function()
+        local response = sendHttpRequest(HTTP_API_CONFIG.endpoints.log, {
+            action = "log",
+            log_type = operationType,
+            player_id = playerId,
+            log_data = logData
+        })
+        
+        if not response or not response.success then
+            logDebug("Failed to log operation:", operationType, "for player:", playerId)
+        end
+    end)
     
-    local response = sendHttpRequest(HTTP_API_CONFIG.endpoints.log, {
-        action = "log",
-        log_type = operationType,
-        player_id = playerId,
-        log_data = logData
-    })
-    
-    if not response or not response.success then
-        logDebug("Failed to log operation:", operationType, "for player:", playerId)
+    if not status then
+        logDebug("Error in logOperation:", err)
     end
 end
 
@@ -157,14 +174,11 @@ function ShopService:new(terminalName)
     
     function obj:init()
         self.terminalName = terminalName or "Unknown"
-        
-        -- Загрузка конфигураций
         self.sellShopList = self:loadConfig("/home/config/sellShop.cfg")
         self.buyShopList = self:loadConfig("/home/config/buyShop.cfg")
         self.oreExchangeList = self:loadConfig("/home/config/oreExchanger.cfg")
         self.exchangeList = self:loadConfig("/home/config/exchanger.cfg")
         
-        -- Настройка валюты
         self.currencies = {
             {item = {name = "minecraft:gold_nugget", damage = 0}, money = 1000},
             {item = {name = "minecraft:gold_ingot", damage = 0}, money = 10000},
@@ -200,6 +214,10 @@ function ShopService:new(terminalName)
         if response and response.success then
             response.balance = toNumber(response.balance)
             return response
+        else
+            logOperation("player_data_failed", nick, {
+                error = response and response.error or "Unknown error"
+            })
         end
         return {balance = 0, items = {}}
     end
@@ -438,14 +456,22 @@ function ShopService:new(terminalName)
     end
 
     function obj:buyItem(nick, itemCfg, count)
+        -- Проверяем входные данные
+        if not nick or not itemCfg or not count then
+            logOperation("buy_failed", nick or "unknown", {
+                error = "Invalid input parameters"
+            })
+            return 0, "Неверные параметры запроса"
+        end
+
         local playerData = self:getPlayerData(nick)
-        local totalCost = count * itemCfg.price
+        local totalCost = count * (itemCfg.price or 0)
         
         if playerData.balance < totalCost then
             logOperation("buy_failed", nick, {
                 item_id = itemCfg.id,
-                item_dmg = itemCfg.dmg,
-                item_name = itemCfg.label,
+                item_dmg = itemCfg.dmg or 0,
+                item_name = itemCfg.label or itemCfg.id,
                 quantity = count,
                 price = itemCfg.price,
                 total_cost = totalCost,
@@ -457,47 +483,21 @@ function ShopService:new(terminalName)
         
         if not itemUtils or not itemUtils.giveItem then
             logOperation("buy_failed", nick, {
-                item_id = itemCfg.id,
-                item_dmg = itemCfg.dmg,
-                item_name = itemCfg.label,
-                quantity = count,
                 error = "ItemUtils not initialized"
             })
-            return 0, "ItemUtils not properly initialized"
+            return 0, "Система предметов не инициализирована"
         end
         
-        local itemsCount = itemUtils.giveItem(itemCfg.id, itemCfg.dmg, count)
+        local itemsCount = itemUtils.giveItem(itemCfg.id, itemCfg.dmg or 0, count)
         if itemsCount > 0 then
             -- Логируем операцию
             logOperation("buy_start", nick, {
                 item_id = itemCfg.id,
-                item_dmg = itemCfg.dmg,
-                item_name = itemCfg.label,
+                item_dmg = itemCfg.dmg or 0,
+                item_name = itemCfg.label or itemCfg.id,
                 quantity = itemsCount,
                 price = itemCfg.price,
                 total_cost = totalCost
-            })
-            
-            -- Логируем предмет
-            local itemResponse = sendHttpRequest(HTTP_API_CONFIG.endpoints.item, {
-                action = "update",
-                player_id = nick,
-                item_id = itemCfg.id,
-                item_dmg = itemCfg.dmg,
-                item_name = itemCfg.label,
-                delta = itemsCount
-            })
-            
-            -- Логируем транзакцию
-            local transactionResponse = sendHttpRequest(HTTP_API_CONFIG.endpoints.transaction, {
-                player_id = nick,
-                transaction_type = "buy_item",
-                item_id = itemCfg.id,
-                item_dmg = itemCfg.dmg,
-                item_name = itemCfg.label,
-                quantity = itemsCount,
-                amount = totalCost,
-                timestamp = os.time()
             })
             
             -- Обновляем баланс
@@ -508,23 +508,18 @@ function ShopService:new(terminalName)
             })
             
             if balanceResponse and balanceResponse.success then
-                logDebug("Bought items:", itemsCount)
                 logOperation("buy_success", nick, {
                     item_id = itemCfg.id,
-                    item_dmg = itemCfg.dmg,
-                    item_name = itemCfg.label,
+                    item_dmg = itemCfg.dmg or 0,
+                    item_name = itemCfg.label or itemCfg.id,
                     quantity = itemsCount,
                     total_cost = totalCost,
-                    new_balance = self:getBalance(nick)
+                    new_balance = playerData.balance - totalCost
                 })
                 return itemsCount, "Куплено " .. itemsCount .. " предметов"
             else
-                itemUtils.takeItem(itemCfg.id, itemCfg.dmg, itemsCount)
+                itemUtils.takeItem(itemCfg.id, itemCfg.dmg or 0, itemsCount)
                 logOperation("buy_failed", nick, {
-                    item_id = itemCfg.id,
-                    item_dmg = itemCfg.dmg,
-                    item_name = itemCfg.label,
-                    quantity = itemsCount,
                     error = "Balance update failed"
                 })
                 return 0, "Ошибка при обновлении баланса"
@@ -532,10 +527,6 @@ function ShopService:new(terminalName)
         end
         
         logOperation("buy_failed", nick, {
-            item_id = itemCfg.id,
-            item_dmg = itemCfg.dmg,
-            item_name = itemCfg.label,
-            quantity = count,
             error = "Failed to give items"
         })
         return 0, "Не удалось купить предметы"

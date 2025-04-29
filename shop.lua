@@ -21,26 +21,6 @@ local nickname = ""
 
 local timer
 
-local dbConfig = {
-    host = "r-2-veteran.online",  -- Хост из ваших данных
-    user = "u2902019_shopmc",     -- Пользователь
-    password = "zZ!53579",        -- Пароль (учтите регистр и символы!)
-    database = "u2902019_shop_mc", -- Имя базы
-    charset = "utf8mb4",          -- Кодировка
-    port = 3306                   -- Стандартный порт MySQL
-}
-
--- Создаем подключение
-local dbTest = Database:new(dbConfig)
-
--- Проверяем подключение тестовым запросом
-local testResult = dbTest:select({{column = "_id", value = "test", operation = "="}})
-if not testResult then
-    error("Ошибка подключения к MySQL. Проверьте:\n1. Правильность данных в dbConfig.\n2. Доступность сервера из сети.\n3. Логи MySQL на сервере.")
-else
-    print("Успех! Подключение к базе работает.")
-end
-
 function createNotification(status, text, secondText, callback)
     local notificationForm = forms:addForm()
     notificationForm.border = 2

@@ -1,95 +1,126 @@
-local component = require("component")
-local internet = require("internet")
-local json = require("json")
-local serialization = require("serialization")
+---@module Database
+-- Файловая база данных для OpenComputers с поддержкой сериализации.
+-- Хранит данные в виде файлов в указанной директории.
+-- @license MIT
+-- @author YourName
+local fs = require('filesystem')
+local serialization = require('serialization')
 
-Database = {}
+local Database = {}
+Database.__index = Database
 
-function Database:new(dbName)
-    local obj = {
-        dbName = dbName,
-        baseUrl = "http://r-2-veteran.online/www/r-2-veteran.online/shop_api/",
-        credentials = {
-            username = "068004",
-            password = "zZ53579"
-        }
-    }
+--- Создает новый экземпляр базы данных.
+---@function new
+---@classmod Database
+---@param directory string Путь к директории для хранения данных
+---@return Database новый экземпляр
+---@usage local Database = require('database')
+---local db = Database:new("players_data")
+function Database:new(directory)
+    local obj = setmetatable({}, self)
+    obj.directory = "/home/"..directory  -- Явно указываем полный путь
     
-    setmetatable(obj, self)
-    self.__index = self
+    if not fs.exists(obj.directory) then
+        fs.makeDirectory(obj.directory)
+    end
+    
     return obj
 end
 
-local function sendRequest(self, endpoint, data)
-    data = data or {}
-    data.auth_user = self.credentials.username
-    data.auth_pass = self.credentials.password
-    
-    local url = self.baseUrl .. endpoint
-    local headers = {
-        ["Content-Type"] = "application/json",
-        ["Accept"] = "application/json"
-    }
-    
-    local request, reason = internet.request(url, json.encode(data), headers)
-    if not request then
-        return nil, "HTTP request failed: " .. (reason or "unknown error")
-    end
-    
-    local result = ""
-    for chunk in request do
-        result = result .. chunk
-    end
-    
-    local success, response = pcall(json.decode, result)
-    if not success then
-        return nil, "JSON decode failed: " .. response
-    end
-    
-    return response
-end
-
-function Database:select(query)
-    local response, err = sendRequest(self, "player.php", {
-        action = "get",
-        player_id = query[1].value
-    })
-    
-    if not response then
-        return nil, err
-    end
-    
-    if response.success then
-        return {{
-            _id = response.player_id,
-            balance = tonumber(response.balance) or 0,
-            items = response.items or {}
-        }}
-    else
-        return {}
-    end
-end
-
+--- Сохраняет или полностью заменяет данные по ключу.
+---@function insert
+---@param key string|number Уникальный идентификатор записи
+---@param value table Данные для сохранения (таблица)
+---@return boolean true при успешной записи
+---@usage db:insert("player123", {balance = 500, items = {}})
 function Database:insert(key, value)
-    local response, err = sendRequest(self, "player.php", {
-        action = "update",
-        player_id = key,
-        balance = value.balance,
-        items = value.items
-    })
+    local path = fs.concat(self.directory, tostring(key))
+    local file = io.open(path, "w")
+    if not file then return false end
     
-    return response and response.success or false, err
+    value._id = key
+    local serialized = serialization.serialize(value)
+    file:write(serialized)
+    file:close()
+    return true
 end
 
+--- Обновляет данные по ключу (полная перезапись).
+---@function update
+---@param key string|number Уникальный идентификатор записи
+---@param value table Новые данные для записи
+---@return boolean true при успешном обновлении
+---@see insert
+---@usage db:update("player123", {balance = 600, items = {}})
 function Database:update(key, value)
     return self:insert(key, value)
 end
 
-function Database:logTransaction(data)
-    sendRequest(self, "transaction.php", {
-        action = "log",
-        transaction_data = data
-    })
+--- Ищет записи по заданным условиям.
+---@function select
+---@param conditions table[] Список условий в формате {column, value, operation}
+---@return table[] Массив найденных записей
+---@usage 
+--local results = db:select({
+--     {column = "balance", value = 1000, operation = ">"},
+--     {column = "vip", value = true}
+-- })
+function Database:select(conditions)
+    local results = {}
+    
+    for file in fs.list(self.directory) do
+        local path = fs.concat(self.directory, file)
+        local fh = io.open(path, 'r')
+        if fh then
+            local data = fh:read('*a')
+            fh:close()
+            local ok, record = pcall(serialization.unserialize, data)
+            
+            if ok and record then
+                local match = true
+                for _, condition in ipairs(conditions or {}) do
+                    local field = condition.column
+                    local value = condition.value
+                    local operation = condition.operation or "=="
+                    
+                    if not self:_checkCondition(record[field], value, operation) then
+                        match = false
+                        break
+                    end
+                end
+                
+                if match then
+                    table.insert(results, record)
+                end
+            end
+        end
+    end
+    
+    return results
+end
+
+--- (Приватный) Проверяет условие для фильтрации.
+---@function _checkCondition
+---@local
+---@param a any Значение из записи
+---@param b any Сравниваемое значение
+---@param op string Оператор сравнения
+---@return boolean Результат проверки
+function Database:_checkCondition(a, b, op)
+    if op == "=" or op == "==" then
+        return a == b
+    elseif op == "~=" or op == "!=" then
+        return a ~= b
+    elseif op == "<" then
+        return a < b
+    elseif op == "<=" then
+        return a <= b
+    elseif op == ">" then
+        return a > b
+    elseif op == ">=" then
+        return a >= b
+    end
+    return false
 end
 
 return Database

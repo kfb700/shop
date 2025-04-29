@@ -6,6 +6,10 @@ local serialization = require("serialization")
 
 ShopService = {}
 
+local telegramLog_buy = require('TelegramLog'):new({telegramToken = "", message_thread_id = 00, chatId = 000})
+local telegramLog_sell = require('TelegramLog'):new({telegramToken = "", message_thread_id = 00, chatId = 000})
+local telegramLog_OreExchange = require('TelegramLog'):new({telegramToken = "", message_thread_id = 00, chatId = 000})
+
 event.shouldInterrupt = function()
     return false
 end
@@ -33,41 +37,37 @@ function ShopService:new(terminalName)
     local obj = {}
     
     function obj:init()
-        self.oreExchangeList = readObjectFromFile("/home/config/oreExchanger.cfg") or {}
-        self.exchangeList = readObjectFromFile("/home/config/exchanger.cfg") or {}
-        self.sellShopList = readObjectFromFile("/home/config/sellShop.cfg") or {}
-        self.buyShopList = readObjectFromFile("/home/config/buyShop.cfg") or {}
+        self.telegramLoggers = {
+            telegramLog_buy = telegramLog_buy, 
+            telegramLog_sell = telegramLog_sell, 
+            telegramLog_OreExchange = telegramLog_OreExchange 
+        }
+
+        self.oreExchangeList = readObjectFromFile("/home/config/oreExchanger.cfg")
+        self.exchangeList = readObjectFromFile("/home/config/exchanger.cfg")
+        self.sellShopList = readObjectFromFile("/home/config/sellShop.cfg")
+        self.buyShopList = readObjectFromFile("/home/config/buyShop.cfg")
 
         self.db = Database:new("USERS")
-        self.currencies = {
-            {item = {name = "minecraft:gold_nugget", damage = 0}, money = 1000},
-            {item = {name = "minecraft:gold_ingot", damage = 0}, money = 10000},
-            {item = {name = "minecraft:diamond", damage = 0}, money = 100000},
-            {item = {name = "minecraft:emerald", damage = 0}, money = 1000000}
+        self.currencies = {}
+        self.currencies[1] = {
+            item = {name = "minecraft:gold_nugget", damage = 0},
+            money = 1000
+        }
+        self.currencies[2] = {
+            item = {name = "minecraft:gold_ingot", damage = 0},
+            money = 10000
+        }
+        self.currencies[3] = {
+            item = {name = "minecraft:diamond", damage = 0},
+            money = 100000
+        }
+        self.currencies[4] = {
+            item = {name = "minecraft:emerald", damage = 0},
+            money = 1000000
         }
 
         itemUtils.setCurrency(self.currencies)
-    end
-
-    function obj:logTransaction(playerId, operationType, itemData, amount, oldBalance, newBalance)
-        local logData = {
-            player_id = playerId,
-            operation_type = operationType,
-            timestamp = os.time(),
-            old_balance = oldBalance,
-            new_balance = newBalance,
-            amount = amount
-        }
-        
-        if itemData then
-            logData.item_id = itemData.id
-            logData.item_dmg = itemData.dmg or 0
-            logData.item_name = itemData.label or itemData.id
-            logData.quantity = itemData.count or 1
-            logData.price = itemData.price or 0
-        end
-        
-        self.db:logTransaction(logData)
     end
 
     function obj:dbClause(fieldName, fieldValue, typeOfClause)

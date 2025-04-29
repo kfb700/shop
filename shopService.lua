@@ -147,7 +147,7 @@ function ShopService:new(terminalName)
         local countOfMoney = itemUtils.takeMoney(count)
         if countOfMoney > 0 then
             -- Логируем транзакцию
-            sendHttpRequest(HTTP_API_CONFIG.endpoints.transaction, {
+            local transactionResponse = sendHttpRequest(HTTP_API_CONFIG.endpoints.transaction, {
                 player_id = nick,
                 transaction_type = "deposit",
                 amount = countOfMoney,
@@ -164,6 +164,10 @@ function ShopService:new(terminalName)
             if response and response.success then
                 logDebug("Deposited money:", countOfMoney)
                 return countOfMoney, "Баланс пополнен на " .. countOfMoney
+            else
+                -- Возвращаем деньги если не удалось обновить баланс
+                itemUtils.giveMoney(countOfMoney)
+                return 0, "Ошибка при пополнении баланса"
             end
         end
         return 0, "Нет монет в инвентаре!"
@@ -244,8 +248,18 @@ function ShopService:new(terminalName)
         
         local itemsCount = itemUtils.giveItem(itemCfg.id, itemCfg.dmg, count)
         if itemsCount > 0 then
+            -- Логируем предмет
+            local itemResponse = sendHttpRequest(HTTP_API_CONFIG.endpoints.item, {
+                action = "update",
+                player_id = nick,
+                item_id = itemCfg.id,
+                item_dmg = itemCfg.dmg,
+                item_name = itemCfg.label,
+                delta = itemsCount
+            })
+            
             -- Логируем транзакцию
-            sendHttpRequest(HTTP_API_CONFIG.endpoints.transaction, {
+            local transactionResponse = sendHttpRequest(HTTP_API_CONFIG.endpoints.transaction, {
                 player_id = nick,
                 transaction_type = "buy_item",
                 item_id = itemCfg.id,
@@ -257,15 +271,19 @@ function ShopService:new(terminalName)
             })
             
             -- Обновляем баланс
-            local response = sendHttpRequest(HTTP_API_CONFIG.endpoints.player, {
+            local balanceResponse = sendHttpRequest(HTTP_API_CONFIG.endpoints.player, {
                 action = "update",
                 player_id = nick,
                 data = {balance = -totalCost}
             })
             
-            if response and response.success then
+            if balanceResponse and balanceResponse.success then
                 logDebug("Bought items:", itemsCount)
                 return itemsCount, "Куплено " .. itemsCount .. " предметов"
+            else
+                -- Откатываем операцию если не удалось обновить баланс
+                itemUtils.takeItem(itemCfg.id, itemCfg.dmg, itemsCount)
+                return 0, "Ошибка при обновлении баланса"
             end
         end
         return 0, "Не удалось купить предметы"

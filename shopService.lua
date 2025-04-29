@@ -50,7 +50,7 @@ local function sendHttpRequest(endpoint, data)
     logDebug("Sending request to:", url)
     logDebug("Request data:", serialization.serialize(data))
     
-    local request, reason = internet.request(url, json.encode(data), {
+    local request, reason = internet.request(url, json.encode(data)), {
         ["Content-Type"] = "application/json",
         ["User-Agent"] = "OCShopSystem/1.0"
     }

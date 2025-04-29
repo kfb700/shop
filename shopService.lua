@@ -1,20 +1,100 @@
 local component = require('component')
 local itemUtils = require('ItemUtils')
 local event = require('event')
-local Database = dofile('/home/Database.lua')
 local serialization = require("serialization")
+local internet = require("internet")
+local json = require("json")
 
 ShopService = {}
 
-local telegramLog_buy = require('TelegramLog'):new({telegramToken = "", message_thread_id = 00, chatId = 000})
-local telegramLog_sell = require('TelegramLog'):new({telegramToken = "", message_thread_id = 00, chatId = 000})
-local telegramLog_OreExchange = require('TelegramLog'):new({telegramToken = "", message_thread_id = 00, chatId = 000})
+-- Конфигурация HTTP API
+local HTTP_API_CONFIG = {
+    baseUrl = "http://r-2-veteran.online/www/r-2-veteran.online/shop_api/",
+    endpoints = {
+        player = "player.php",
+        transaction = "transaction.php",
+        item = "item.php",
+        log = "log.php"
+    },
+    credentials = {
+        username = "068004",
+        password = "zZ53579"
+    }
+}
 
-event.shouldInterrupt = function()
-    return false
+-- Функция для безопасного логирования
+local function logDebug(...)
+    local args = {...}
+    local message = ""
+    for i, v in ipairs(args) do
+        message = message .. (i > 1 and "\t" or "") .. tostring(v)
+    end
+    print("[DEBUG] " .. message)
 end
 
-local function printD(...) end
+-- Улучшенная функция отправки HTTP запроса
+local function sendHttpRequest(endpoint, data)
+    local url = HTTP_API_CONFIG.baseUrl .. endpoint .. 
+               "?auth_user=" .. HTTP_API_CONFIG.credentials.username ..
+               "&auth_pass=" .. HTTP_API_CONFIG.credentials.password
+    
+    logDebug("Sending request to:", url)
+    logDebug("Request data:", serialization.serialize(data))
+    
+    local request, reason = internet.request(url, json.encode(data), {
+        ["Content-Type"] = "application/json",
+        ["User-Agent"] = "OCShopSystem/1.0"
+    })
+    
+    if not request then
+        logDebug("HTTP request failed:", reason)
+        return {success = false, error = "HTTP request failed: " .. (reason or "unknown reason")}
+    end
+    
+    local result = ""
+    for chunk in request do
+        result = result .. chunk
+    end
+    
+    logDebug("Raw response:", result)
+    
+    local success, response = pcall(json.decode, result)
+    if not success then
+        logDebug("JSON decode failed:", response)
+        return {success = false, error = "JSON decode failed: " .. response}
+    end
+    
+    return response or {success = false, error = "Invalid server response"}
+end
+
+-- Функция для логирования транзакций
+local function logTransaction(playerId, operationType, itemData, amount, oldBalance, newBalance)
+    local logData = {
+        player_id = playerId,
+        operation_type = operationType,
+        timestamp = os.time(),
+        old_balance = oldBalance,
+        new_balance = newBalance,
+        amount = amount
+    }
+    
+    if itemData then
+        logData.item_id = itemData.id
+        logData.item_dmg = itemData.dmg or 0
+        logData.item_name = itemData.label or itemData.id
+        logData.quantity = itemData.count or 1
+        logData.price = itemData.price or 0
+    end
+    
+    local response = sendHttpRequest(HTTP_API_CONFIG.endpoints.log, {
+        action = "log",
+        log_data = logData
+    })
+    
+    if not response or not response.success then
+        logDebug("Failed to log transaction:", operationType, "for player:", playerId)
+    end
+end
 
 local function readObjectFromFile(path)
     local file, err = io.open(path, "r")
@@ -37,34 +117,17 @@ function ShopService:new(terminalName)
     local obj = {}
     
     function obj:init()
-        self.telegramLoggers = {
-            telegramLog_buy = telegramLog_buy, 
-            telegramLog_sell = telegramLog_sell, 
-            telegramLog_OreExchange = telegramLog_OreExchange 
-        }
+        self.terminalName = terminalName or "Unknown"
+        self.oreExchangeList = readObjectFromFile("/home/config/oreExchanger.cfg") or {}
+        self.exchangeList = readObjectFromFile("/home/config/exchanger.cfg") or {}
+        self.sellShopList = readObjectFromFile("/home/config/sellShop.cfg") or {}
+        self.buyShopList = readObjectFromFile("/home/config/buyShop.cfg") or {}
 
-        self.oreExchangeList = readObjectFromFile("/home/config/oreExchanger.cfg")
-        self.exchangeList = readObjectFromFile("/home/config/exchanger.cfg")
-        self.sellShopList = readObjectFromFile("/home/config/sellShop.cfg")
-        self.buyShopList = readObjectFromFile("/home/config/buyShop.cfg")
-
-        self.db = Database:new("USERS")
-        self.currencies = {}
-        self.currencies[1] = {
-            item = {name = "minecraft:gold_nugget", damage = 0},
-            money = 1000
-        }
-        self.currencies[2] = {
-            item = {name = "minecraft:gold_ingot", damage = 0},
-            money = 10000
-        }
-        self.currencies[3] = {
-            item = {name = "minecraft:diamond", damage = 0},
-            money = 100000
-        }
-        self.currencies[4] = {
-            item = {name = "minecraft:emerald", damage = 0},
-            money = 1000000
+        self.currencies = {
+            {item = {name = "minecraft:gold_nugget", damage = 0}, money = 1000},
+            {item = {name = "minecraft:gold_ingot", damage = 0}, money = 10000},
+            {item = {name = "minecraft:diamond", damage = 0}, money = 100000},
+            {item = {name = "minecraft:emerald", damage = 0}, money = 1000000}
         }
 
         itemUtils.setCurrency(self.currencies)
@@ -127,105 +190,158 @@ function ShopService:new(terminalName)
         return {}
     end
 
+    function obj:getPlayerData(nick)
+        local response = sendHttpRequest(HTTP_API_CONFIG.endpoints.player, {
+            action = "get",
+            player_id = nick
+        })
+        
+        if response and response.success then
+            return {
+                balance = tonumber(response.balance) or 0,
+                items = response.items or {}
+            }
+        end
+        
+        return {balance = 0, items = {}}
+    end
+
     function obj:depositMoney(nick, count)
         local countOfMoney = itemUtils.takeMoney(count)
-        if (countOfMoney > 0) then
+        if countOfMoney > 0 then
             local playerData = self:getPlayerData(nick)
-            playerData.balance = playerData.balance + countOfMoney
-            self.db:insert(nick, playerData)
-            printD(terminalName .. ": Игрок " .. nick .. " пополнил баланс на " .. countOfMoney .. " Текущий баланс " .. playerData.balance)
-            return playerData.balance, "Баланс пополнен на " .. countOfMoney
+            local oldBalance = playerData.balance
+            playerData.balance = oldBalance + countOfMoney
+            
+            local response = sendHttpRequest(HTTP_API_CONFIG.endpoints.player, {
+                action = "update",
+                player_id = nick,
+                data = {balance = countOfMoney}
+            })
+            
+            if response and response.success then
+                logTransaction(nick, "deposit", nil, countOfMoney, oldBalance, playerData.balance)
+                return countOfMoney, "Баланс пополнен на " .. countOfMoney
+            else
+                itemUtils.giveMoney(countOfMoney)
+                return 0, "Ошибка при пополнении баланса"
+            end
         end
-        return 0, "Нету монеток в инвентаре!"
+        return 0, "Нет монет в инвентаре!"
     end
 
     function obj:withdrawMoney(nick, count)
         local playerData = self:getPlayerData(nick)
-        if (playerData.balance < count) then
+        if playerData.balance < count then
             return 0, "Не хватает денег на счету"
         end
+        
         local countOfMoney = itemUtils.giveMoney(count)
-        if (countOfMoney > 0) then
-            playerData.balance = playerData.balance - countOfMoney
-            self.db:insert(nick, playerData)
-            printD(terminalName .. ": Игрок " .. nick .. " снял с баланса " .. countOfMoney .. ". Текущий баланс " .. playerData.balance)
-            return countOfMoney, "C баланса списанно " .. countOfMoney
+        if countOfMoney > 0 then
+            local oldBalance = playerData.balance
+            playerData.balance = oldBalance - countOfMoney
+            
+            local response = sendHttpRequest(HTTP_API_CONFIG.endpoints.player, {
+                action = "update",
+                player_id = nick,
+                data = {balance = -countOfMoney}
+            })
+            
+            if response and response.success then
+                logTransaction(nick, "withdraw", nil, countOfMoney, oldBalance, playerData.balance)
+                return countOfMoney, "Снято с баланса: " .. countOfMoney
+            else
+                itemUtils.takeItem("minecraft:gold_nugget", 0, countOfMoney / 1000)
+                return 0, "Ошибка при обновлении баланса"
+            end
         end
-        if (itemUtils.countOfAvailableSlots() > 0) then
-            return 0, "Нету монеток в магазине!"
+        
+        if itemUtils.countOfAvailableSlots() > 0 then
+            return 0, "Нет монет в магазине!"
         else
             return 0, "Освободите инвентарь!"
         end
     end
 
-    function obj:getPlayerData(nick)
-        print("[DEBUG] Загрузка данных для", nick)
-        local playerDataList = self.db:select({self:dbClause("_id", nick, "=")})
-        
-        if not playerDataList or not playerDataList[1] then
-            print("[DEBUG] Создание нового игрока", nick)
-            local newPlayer = {_id = nick, balance = 0, items = {}}
-            if not self.db:insert(nick, newPlayer) then
-                print("[ERROR] Не удалось создать запись для нового игрока")
-            end
-            return newPlayer
-        end
-        
-        print("[DEBUG] Найден баланс:", playerDataList[1].balance)
-        return playerDataList[1]
-    end
-
-    function obj:withdrawItem(nick, id, dmg, count)
+    function obj:buyItem(nick, itemCfg, count)
         local playerData = self:getPlayerData(nick)
-        for i = 1, #playerData.items do
-            local item = playerData.items[i]
-            if (item.id == id and item.dmg == dmg) then
-                local countToWithdraw = math.min(count, item.count)
-                local withdrawedCount = itemUtils.giveItem(id, dmg, countToWithdraw)
-                item.count = item.count - withdrawedCount
-                if (item.count == 0) then
-                    table.remove(playerData.items, i)
-                end
-                self.db:update(nick, playerData)
-                if (withdrawedCount > 0) then
-                    printD(terminalName .. ": Игрок " .. nick .. " забрал " .. id .. ":" .. dmg .. " в количестве " .. withdrawedCount)
-                end
-                return withdrawedCount, "Выданно " .. withdrawedCount .. " вещей"
+        local totalCost = count * itemCfg.price
+        
+        if playerData.balance < totalCost then
+            return 0, "Не хватает денег на счету"
+        end
+        
+        local itemsCount = itemUtils.giveItem(itemCfg.id, itemCfg.dmg or 0, count)
+        if itemsCount > 0 then
+            local oldBalance = playerData.balance
+            playerData.balance = oldBalance - totalCost
+            
+            -- Обновляем баланс
+            local balanceResponse = sendHttpRequest(HTTP_API_CONFIG.endpoints.player, {
+                action = "update",
+                player_id = nick,
+                data = {balance = -totalCost}
+            })
+            
+            -- Логируем предмет
+            local itemResponse = sendHttpRequest(HTTP_API_CONFIG.endpoints.item, {
+                action = "update",
+                player_id = nick,
+                item_id = itemCfg.id,
+                item_dmg = itemCfg.dmg or 0,
+                item_name = itemCfg.label or itemCfg.id,
+                delta = itemsCount
+            })
+            
+            if balanceResponse and balanceResponse.success then
+                logTransaction(nick, "buy", {
+                    id = itemCfg.id,
+                    dmg = itemCfg.dmg or 0,
+                    label = itemCfg.label or itemCfg.id,
+                    count = itemsCount,
+                    price = itemCfg.price
+                }, totalCost, oldBalance, playerData.balance)
+                
+                return itemsCount, "Куплено " .. itemsCount .. " предметов"
+            else
+                itemUtils.takeItem(itemCfg.id, itemCfg.dmg or 0, itemsCount)
+                return 0, "Ошибка при обновлении баланса"
             end
         end
-        return 0, "Вещей нету в наличии!"
+        return 0, "Не удалось купить предметы"
     end
 
     function obj:sellItem(nick, itemCfg, count)
-        local playerData = self:getPlayerData(nick)
-        if (playerData.balance < count * itemCfg.price) then
-            return false, "Не хватает денег на счету"
-        end
-        local itemsCount = itemUtils.giveItem(itemCfg.id, itemCfg.dmg, count, itemCfg.nbt)
-        if (itemsCount > 0) then
-            playerData.balance = playerData.balance - itemsCount * itemCfg.price
-            self.db:update(nick, playerData)
-            printD(terminalName .. ": Игрок " .. nick .. " купил " .. itemCfg.id .. ":" .. itemCfg.dmg .. " в количестве " .. itemsCount .. " по цене " .. itemCfg.price .. " за шт. Текущий баланс " .. playerData.balance)
-        end
-        return itemsCount, "Куплено " .. itemsCount .. " предметов!"
-    end
-
-    function obj:buyItem(nick, itemCfg, count)
-        print("[DEBUG] Попытка продажи:", nick, itemCfg.id, count)
-        local itemsCount = itemUtils.takeItem(itemCfg.id, itemCfg.dmg, count)
-        print("[DEBUG] Предметов принято:", itemsCount)
+        local itemsCount = itemUtils.takeItem(itemCfg.id, itemCfg.dmg or 0, count)
         if itemsCount > 0 then
             local playerData = self:getPlayerData(nick)
             local oldBalance = playerData.balance
-            playerData.balance = oldBalance + (itemsCount * itemCfg.price)
-            if not self.db:update(nick, playerData) then
-                print("[ERROR] Не удалось сохранить баланс!")
-                return 0, "Ошибка сервера"
+            local totalPrice = itemsCount * itemCfg.price
+            playerData.balance = oldBalance + totalPrice
+            
+            -- Обновляем баланс
+            local response = sendHttpRequest(HTTP_API_CONFIG.endpoints.player, {
+                action = "update",
+                player_id = nick,
+                data = {balance = totalPrice}
+            })
+            
+            if response and response.success then
+                logTransaction(nick, "sell", {
+                    id = itemCfg.id,
+                    dmg = itemCfg.dmg or 0,
+                    label = itemCfg.label or itemCfg.id,
+                    count = itemsCount,
+                    price = itemCfg.price
+                }, totalPrice, oldBalance, playerData.balance)
+                
+                return itemsCount, "Продано " .. itemsCount .. " предметов"
+            else
+                itemUtils.giveItem(itemCfg.id, itemCfg.dmg or 0, itemsCount)
+                return 0, "Ошибка при обновлении баланса"
             end
-            print("[DEBUG] Баланс изменён:", oldBalance, "->", playerData.balance)
-            return itemsCount, "Продано "..itemsCount.." предметов"
         end
-        return 0, "Не удалось принять предметы"
+        return 0, "Не удалось продать предметы"
     end
 
     function obj:withdrawAll(nick)

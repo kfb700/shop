@@ -100,17 +100,29 @@ local function readObjectFromFile(path)
     return obj
 end
 
+-- Функция преобразования формата предметов
+local function convertItemFormat(item)
+    return {
+        id = item.id,
+        dmg = item.dmg or 0,
+        price = item.price or 0,
+        label = item.label or item.id,
+        category = item.category or "default",
+        nbt = item.nbt
+    }
+end
+
 function ShopService:new(terminalName)
     local obj = {}
     
     function obj:init()
         self.terminalName = terminalName or "Unknown"
         
-        -- Загрузка конфигураций
-        self.oreExchangeList = readObjectFromFile("/home/config/oreExchanger.cfg") or {}
-        self.exchangeList = readObjectFromFile("/home/config/exchanger.cfg") or {}
-        self.sellShopList = readObjectFromFile("/home/config/sellShop.cfg") or {}
-        self.buyShopList = readObjectFromFile("/home/config/buyShop.cfg") or {}
+        -- Загрузка конфигураций с автоматическим преобразованием формата
+        self.oreExchangeList = self:loadConfig("/home/config/oreExchanger.cfg")
+        self.exchangeList = self:loadConfig("/home/config/exchanger.cfg")
+        self.sellShopList = self:loadConfig("/home/config/sellShop.cfg")
+        self.buyShopList = self:loadConfig("/home/config/buyShop.cfg")
 
         -- Настройка валюты
         self.currencies = {
@@ -121,6 +133,18 @@ function ShopService:new(terminalName)
         }
 
         itemUtils.setCurrency(self.currencies)
+    end
+
+    -- Функция загрузки конфига с поддержкой разных форматов
+    function obj:loadConfig(path)
+        local config = readObjectFromFile(path) or {}
+        local converted = {}
+        
+        for _, item in ipairs(config) do
+            table.insert(converted, convertItemFormat(item))
+        end
+        
+        return converted
     end
 
     -- Основные методы магазина
@@ -143,11 +167,43 @@ function ShopService:new(terminalName)
         return playerData.balance
     end
 
+    function obj:getSellShopList(category)
+        if not self.sellShopList then
+            self.sellShopList = self:loadConfig("/home/config/sellShop.cfg")
+        end
+        
+        local filtered = {}
+        for _, item in ipairs(self.sellShopList) do
+            if not category or item.category == category then
+                table.insert(filtered, item)
+            end
+        end
+        
+        itemUtils.populateCount(filtered)
+        return filtered
+    end
+
+    function obj:getBuyShopList(category)
+        if not self.buyShopList then
+            self.buyShopList = self:loadConfig("/home/config/buyShop.cfg")
+        end
+        
+        local filtered = {}
+        for _, item in ipairs(self.buyShopList) do
+            if not category or item.category == category then
+                table.insert(filtered, item)
+            end
+        end
+        
+        itemUtils.populateUserCount(filtered)
+        return filtered
+    end
+
     function obj:depositMoney(nick, count)
         local countOfMoney = itemUtils.takeMoney(count)
         if countOfMoney > 0 then
             -- Логируем транзакцию
-            local transactionResponse = sendHttpRequest(HTTP_API_CONFIG.endpoints.transaction, {
+            sendHttpRequest(HTTP_API_CONFIG.endpoints.transaction, {
                 player_id = nick,
                 transaction_type = "deposit",
                 amount = countOfMoney,
@@ -165,7 +221,6 @@ function ShopService:new(terminalName)
                 logDebug("Deposited money:", countOfMoney)
                 return countOfMoney, "Баланс пополнен на " .. countOfMoney
             else
-                -- Возвращаем деньги если не удалось обновить баланс
                 itemUtils.giveMoney(countOfMoney)
                 return 0, "Ошибка при пополнении баланса"
             end
@@ -281,7 +336,6 @@ function ShopService:new(terminalName)
                 logDebug("Bought items:", itemsCount)
                 return itemsCount, "Куплено " .. itemsCount .. " предметов"
             else
-                -- Откатываем операцию если не удалось обновить баланс
                 itemUtils.takeItem(itemCfg.id, itemCfg.dmg, itemsCount)
                 return 0, "Ошибка при обновлении баланса"
             end

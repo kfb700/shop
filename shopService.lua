@@ -4,27 +4,9 @@ local event = require('event')
 local internet = require('internet')
 local serialization = require("serialization")
 local fs = require('filesystem')
+local os = require('os')
 
--- Настройки Discord
-local DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1366871469526745148/oW2yVyCNevcBHrXAmvKM1506GIWWFKkQ3oqwa2nNjd_KNDTbDR_c6_6le9TBewpjnTqy"
-local DISCORD_USERNAME = "Minecraft Shop"
-local DISCORD_AVATAR = "https://www.minecraft.net/content/dam/minecraft/touchup-2020/minecraft-logo.svg"
-
--- Логирование
-local LOG_FILE = "/home/shop_log.txt"
-local function log(message)
-    local logEntry = os.date("[%Y-%m-%d %H:%M:%S] ") .. message .. "\n"
-    print(logEntry:sub(1, -2)) -- Вывод в консоль без переноса
-    
-    -- Запись в файл
-    local file = io.open(LOG_FILE, "a")
-    if file then
-        file:write(logEntry)
-        file:close()
-    end
-end
-
--- Модуль Database
+-- Сначала определяем модуль Database локально
 local Database = {}
 Database.__index = Database
 
@@ -42,19 +24,10 @@ end
 function Database:insert(key, value)
     local path = fs.concat(self.directory, tostring(key))
     local file = io.open(path, "w")
-    if not file then 
-        log("Ошибка записи в БД: "..path)
-        return false 
-    end
+    if not file then return false end
     
     value._id = key
-    local ok, serialized = pcall(serialization.serialize, value)
-    if not ok then
-        log("Ошибка сериализации данных")
-        file:close()
-        return false
-    end
-    
+    local serialized = serialization.serialize(value)
     file:write(serialized)
     file:close()
     return true
@@ -69,270 +42,494 @@ function Database:select(conditions)
     
     for file in fs.list(self.directory) do
         local path = fs.concat(self.directory, file)
-        local fh, err = io.open(path, 'r')
-        if not fh then
-            log("Ошибка чтения файла "..path..": "..(err or "unknown"))
-            goto continue
-        end
-        
-        local data = fh:read('*a')
-        fh:close()
-        
-        local ok, record = pcall(serialization.unserialize, data)
-        if not ok or not record then
-            log("Ошибка десериализации "..path)
-            goto continue
-        end
-        
-        local match = true
-        for _, cond in ipairs(conditions or {}) do
-            local field, value, op = cond.column, cond.value, cond.operation or "=="
-            local fieldValue = record[field]
+        local fh = io.open(path, 'r')
+        if fh then
+            local data = fh:read('*a')
+            fh:close()
+            local ok, record = pcall(serialization.unserialize, data)
             
-            if op == "==" and fieldValue ~= value then
-                match = false
-            elseif op == "~=" and fieldValue == value then
-                match = false
-            elseif op == "<" and not (fieldValue < value) then
-                match = false
-            elseif op == "<=" and not (fieldValue <= value) then
-                match = false
-            elseif op == ">" and not (fieldValue > value) then
-                match = false
-            elseif op == ">=" and not (fieldValue >= value) then
-                match = false
+            if ok and record then
+                local match = true
+                for _, condition in ipairs(conditions or {}) do
+                    local field = condition.column
+                    local value = condition.value
+                    local operation = condition.operation or "=="
+                    
+                    if operation == "=" or operation == "==" then
+                        if record[field] ~= value then match = false end
+                    elseif operation == "~=" or operation == "!=" then
+                        if record[field] == value then match = false end
+                    elseif operation == "<" then
+                        if not (record[field] < value) then match = false end
+                    elseif operation == "<=" then
+                        if not (record[field] <= value) then match = false end
+                    elseif operation == ">" then
+                        if not (record[field] > value) then match = false end
+                    elseif operation == ">=" then
+                        if not (record[field] >= value) then match = false end
+                    end
+                    
+                    if not match then break end
+                end
+                
+                if match then
+                    table.insert(results, record)
+                end
             end
-            
-            if not match then break end
         end
-        
-        if match then
-            table.insert(results, record)
-        end
-        
-        ::continue::
     end
     
     return results
 end
 
--- Улучшенная отправка в Discord
-local function sendToDiscord(message)
-    -- Проверка интернет-карты
-    if not component.isAvailable("internet") then
-        log("Интернет-карта не доступна")
-        return false
-    end
+-- Теперь определяем ShopService
+ShopService = {}
 
-    -- Подготовка данных
-    local payload = {
-        content = message,
-        username = DISCORD_USERNAME,
-        avatar_url = DISCORD_AVATAR
-    }
+-- Конфигурация Discord Webhook
+local DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1366871469526745148/oW2yVyCNevcBHrXAmvKM1506GIWWFKkQ3oqwa2nNjd_KNDTbDR_c6_6le9TBewpjnTqy"
 
-    local ok, json = pcall(serialization.serialize, payload)
-    if not ok then
-        log("Ошибка сериализации Discord сообщения")
-        return false
-    end
+-- Очередь сообщений и таймер
+local messageQueue = {}
+local lastSendTime = 0
+local BATCH_DELAY = 60 -- 60 секунд (1 минута)
 
-    -- Отправка с повторными попытками
-    for attempt = 1, 3 do
-        local success, err = pcall(function()
-            local request = internet.request(
-                DISCORD_WEBHOOK,
-                json,
-                {
-                    ["Content-Type"] = "application/json",
-                    ["User-Agent"] = "OC-Shop/1.0"
-                },
-                "POST"
-            )
-            
-            -- Ожидаем ответ 5 секунд
-            for _ = 1, 5 do
-                if request.finishConnect() ~= nil then
-                    return true
-                end
-                os.sleep(1)
-            end
-            return false
-        end)
-
-        if success and err then
-            log("Сообщение отправлено в Discord: "..message)
-            return true
-        else
-            log(string.format("Попытка %d не удалась: %s", attempt, err or "таймаут"))
-            os.sleep(2)
-        end
-    end
-    
-    log("Не удалось отправить сообщение в Discord после 3 попыток")
+event.shouldInterrupt = function()
     return false
 end
 
--- Функция чтения конфигов
-local function readConfig(path)
-    local file, err = io.open(path, "r")
-    if not file then
-        log("Ошибка открытия конфига "..path..": "..(err or ""))
-        return nil
+local function sendBatchToDiscord()
+    if #messageQueue == 0 then return end
+    
+    local batchMessage = "**Отчет о действиях в магазине**\n" .. table.concat(messageQueue, "\n")
+    local jsonData = string.format('{"content":"%s"}', batchMessage:gsub('"', '\\"'))
+    
+    local success, err = pcall(function()
+        local request = internet.request(
+            DISCORD_WEBHOOK_URL,
+            jsonData,
+            {["Content-Type"] = "application/json"},
+            "POST"
+        )
+        local response = request.finishConnect()
+        return response ~= nil
+    end)
+    
+    if not success then
+        print("[DISCORD ERROR] " .. tostring(err))
+    else
+        -- Очищаем очередь после успешной отправки
+        messageQueue = {}
+        lastSendTime = os.time()
     end
-    
-    local content = file:read("*a")
-    file:close()
-    
-    local ok, data = pcall(serialization.unserialize, content)
-    if not ok then
-        log("Ошибка парсинга конфига "..path)
-        return nil
-    end
-    
-    return data
 end
 
--- Основной модуль ShopService
-ShopService = {}
+local function addToQueue(message)
+    table.insert(messageQueue, message)
+    
+    -- Если прошло больше BATCH_DELAY секунд с последней отправки
+    if os.time() - lastSendTime >= BATCH_DELAY then
+        sendBatchToDiscord()
+    end
+end
+
+local function printD(message)
+    print(message)
+    addToQueue(message)
+end
+
+local function readObjectFromFile(path)
+    local file, err = io.open(path, "r")
+    if not file then
+        return nil, "Failed to open file: " .. (err or "unknown error")
+    end
+  
+    local content = file:read("*a")
+    file:close()
+  
+    local obj = serialization.unserialize(content)
+    if not obj then
+        return nil, "Failed to unserialize content from file"
+    end
+  
+    return obj
+end
 
 function ShopService:new(terminalName)
     local obj = {}
     
     function obj:init()
-        self.terminalName = terminalName or "Без названия"
+        self.terminalName = terminalName or "Unknown Terminal"
         
-        -- Загрузка конфигов
-        self.oreExchangeList = readConfig("/home/config/oreExchanger.cfg") or {}
-        self.exchangeList = readConfig("/home/config/exchanger.cfg") or {}
-        self.sellShopList = readConfig("/home/config/sellShop.cfg") or {}
-        self.buyShopList = readConfig("/home/config/buyShop.cfg") or {}
+        self.oreExchangeList = readObjectFromFile("/home/config/oreExchanger.cfg") or {}
+        self.exchangeList = readObjectFromFile("/home/config/exchanger.cfg") or {}
+        self.sellShopList = readObjectFromFile("/home/config/sellShop.cfg") or {}
+        self.buyShopList = readObjectFromFile("/home/config/buyShop.cfg") or {}
 
-        -- Валюта
         self.currencies = {
             {item = {name = "minecraft:gold_nugget", damage = 0}, money = 1000},
             {item = {name = "minecraft:gold_ingot", damage = 0}, money = 10000},
             {item = {name = "minecraft:diamond", damage = 0}, money = 100000},
             {item = {name = "minecraft:emerald", damage = 0}, money = 1000000}
         }
+
         itemUtils.setCurrency(self.currencies)
         
-        -- База данных
+        -- Инициализация базы данных
         self.db = Database:new("USERS")
         
-        sendToDiscord("🔄 Магазин "..self.terminalName.." запущен")
-        log("Магазин "..self.terminalName.." инициализирован")
+        printD("🔄 " .. self.terminalName .. " инициализирован")
     end
 
-    -- Вспомогательные функции
-    function obj:dbClause(field, value, op)
-        return {column = field, value = value, operation = op or "=="}
+    function obj:dbClause(fieldName, fieldValue, typeOfClause)
+        return {
+            column = fieldName,
+            value = fieldValue,
+            operation = typeOfClause or "=="
+        }
     end
 
-    -- API магазина
-    function obj:getPlayerData(nick)
-        local data = self.db:select({self:dbClause("_id", nick)})[1]
-        if not data then
-            data = {_id = nick, balance = 0, items = {}}
-            if not self.db:insert(nick, data) then
-                log("Ошибка создания профиля "..nick)
-            else
-                sendToDiscord("🆕 Новый игрок: "..nick)
+    function obj:getOreExchangeList()
+        return self.oreExchangeList
+    end
+
+    function obj:getExchangeList()
+        return self.exchangeList
+    end
+
+    function obj:getSellShopList(category)
+        local categorySellShopList = {}
+        for i, sellConfig in pairs(self.sellShopList) do
+            if sellConfig.category == category then
+                table.insert(categorySellShopList, sellConfig)
             end
         end
-        return data
+        itemUtils.populateCount(categorySellShopList)
+        return categorySellShopList
     end
 
-    function obj:depositMoney(nick, amount)
-        local taken = itemUtils.takeMoney(amount)
-        if taken > 0 then
-            local data = self:getPlayerData(nick)
-            data.balance = data.balance + taken
-            self.db:update(nick, data)
-            sendToDiscord(string.format("💰 %s +%d (Баланс: %d)", nick, taken, data.balance))
-            return data.balance
+    function obj:getBuyShopList()
+        itemUtils.populateUserCount(self.buyShopList)
+        return self.buyShopList
+    end
+
+    function obj:getBalance(nick)
+        local playerData = self:getPlayerData(nick)
+        return playerData and playerData.balance or 0
+    end
+
+    function obj:getItemCount(nick)
+        local playerData = self:getPlayerData(nick)
+        return playerData and #playerData.items or 0
+    end
+
+    function obj:getItems(nick)
+        local playerData = self:getPlayerData(nick)
+        return playerData and playerData.items or {}
+    end
+
+    function obj:depositMoney(nick, count)
+        local countOfMoney = itemUtils.takeMoney(count)
+        if countOfMoney > 0 then
+            local playerData = self:getPlayerData(nick)
+            playerData.balance = playerData.balance + countOfMoney
+            self.db:insert(nick, playerData)
+            printD("💰 " .. nick .. " пополнил баланс на " .. countOfMoney .. " в " .. self.terminalName .. ". Баланс: " .. playerData.balance)
+            return playerData.balance, "Баланс пополнен на " .. countOfMoney
         end
-        return 0
+        return 0, "Нет монет в инвентаре!"
     end
 
-    function obj:withdrawMoney(nick, amount)
-        local data = self:getPlayerData(nick)
-        if data.balance < amount then
-            return 0
+    function obj:withdrawMoney(nick, count)
+        local playerData = self:getPlayerData(nick)
+        if playerData.balance < count then
+            return 0, "Не хватает денег на счету"
         end
         
-        local given = itemUtils.giveMoney(amount)
-        if given > 0 then
-            data.balance = data.balance - given
-            self.db:update(nick, data)
-            sendToDiscord(string.format("💸 %s -%d (Баланс: %d)", nick, given, data.balance))
-            return given
-        end
-        return 0
-    end
-
-    function obj:sellItem(nick, item, count)
-        local data = self:getPlayerData(nick)
-        local total = item.price * count
-        
-        if data.balance < total then
-            return 0
+        local countOfMoney = itemUtils.giveMoney(count)
+        if countOfMoney > 0 then
+            playerData.balance = playerData.balance - countOfMoney
+            self.db:insert(nick, playerData)
+            printD("💸 " .. nick .. " снял " .. countOfMoney .. " в " .. self.terminalName .. ". Баланс: " .. playerData.balance)
+            return countOfMoney, "С баланса списано " .. countOfMoney
         end
         
-        local given = itemUtils.giveItem(item.id, item.dmg, count, item.nbt)
-        if given > 0 then
-            data.balance = data.balance - (item.price * given)
-            self.db:update(nick, data)
-            local name = item.label or item.id
-            sendToDiscord(string.format("🛒 %s купил %s ×%d за %d", nick, name, given, item.price))
-            return given
-        end
-        return 0
+        return 0, itemUtils.countOfAvailableSlots() > 0 and "Нет монет в магазине!" or "Освободите инвентарь!"
     end
 
-    function obj:buyItem(nick, item, count)
-        local taken = itemUtils.takeItem(item.id, item.dmg, count)
-        if taken > 0 then
-            local data = self:getPlayerData(nick)
-            data.balance = data.balance + (item.price * taken)
-            self.db:update(nick, data)
-            local name = item.label or item.id
-            sendToDiscord(string.format("🏪 %s продал %s ×%d за %d", nick, name, taken, item.price))
-            return taken
+    function obj:getPlayerData(nick)
+        local playerDataList = self.db:select({self:dbClause("_id", nick)})
+        
+        if not playerDataList or not playerDataList[1] then
+            local newPlayer = {_id = nick, balance = 0, items = {}}
+            if not self.db:insert(nick, newPlayer) then
+                printD("⚠️ Ошибка создания игрока " .. nick .. " в " .. self.terminalName)
+            else
+                printD("🆕 Новый игрок " .. nick .. " зарегистрирован в " .. self.terminalName)
+            end
+            return newPlayer
         end
-        return 0
+        
+        return playerDataList[1]
     end
 
-    -- Остальные методы остаются аналогичными, но используют sendToDiscord вместо printD
-    
+    function obj:withdrawItem(nick, id, dmg, count)
+        local playerData = self:getPlayerData(nick)
+        for i = 1, #playerData.items do
+            local item = playerData.items[i]
+            if item.id == id and item.dmg == dmg then
+                local countToWithdraw = math.min(count, item.count)
+                local withdrawedCount = itemUtils.giveItem(id, dmg, countToWithdraw)
+                item.count = item.count - withdrawedCount
+                
+                if item.count == 0 then
+                    table.remove(playerData.items, i)
+                end
+                
+                self.db:update(nick, playerData)
+                
+                if withdrawedCount > 0 then
+                    printD("📤 " .. nick .. " забрал " .. id .. ":" .. dmg .. " (x" .. withdrawedCount .. ") из " .. self.terminalName)
+                end
+                return withdrawedCount, "Выдано " .. withdrawedCount .. " предметов"
+            end
+        end
+        return 0, "Предметов нет в наличии!"
+    end
+
+    function obj:sellItem(nick, itemCfg, count)
+        local playerData = self:getPlayerData(nick)
+        local totalPrice = count * itemCfg.price
+        
+        if playerData.balance < totalPrice then
+            return false, "Не хватает денег на счету"
+        end
+        
+        local itemsCount = itemUtils.giveItem(itemCfg.id, itemCfg.dmg, count, itemCfg.nbt)
+        if itemsCount > 0 then
+            playerData.balance = playerData.balance - (itemsCount * itemCfg.price)
+            self.db:update(nick, playerData)
+            local itemName = itemCfg.label or (itemCfg.id .. ":" .. itemCfg.dmg)
+            printD("🛒 " .. nick .. " купил " .. itemName .. " (x" .. itemsCount .. ") по " .. itemCfg.price .. " в " .. self.terminalName .. ". Баланс: " .. playerData.balance)
+            return itemsCount, "Куплено " .. itemsCount .. " предметов!"
+        end
+        return 0, "Ошибка выдачи предмета"
+    end
+
+    function obj:buyItem(nick, itemCfg, count)
+        local itemsCount = itemUtils.takeItem(itemCfg.id, itemCfg.dmg, count)
+        if itemsCount > 0 then
+            local playerData = self:getPlayerData(nick)
+            playerData.balance = playerData.balance + (itemsCount * itemCfg.price)
+            
+            if not self.db:update(nick, playerData) then
+                printD("⚠️ Ошибка сохранения баланса для " .. nick .. " в " .. self.terminalName)
+                return 0, "Ошибка сервера"
+            end
+            
+            local itemName = itemCfg.label or (itemCfg.id .. ":" .. itemCfg.dmg)
+            printD("🏪 " .. nick .. " продал " .. itemName .. " (x" .. itemsCount .. ") по " .. itemCfg.price .. " в " .. self.terminalName .. ". Баланс: " .. playerData.balance)
+            return itemsCount, "Продано "..itemsCount.." предметов"
+        end
+        return 0, "Не удалось принять предметы"
+    end
+
+    function obj:withdrawAll(nick)
+        local playerData = self:getPlayerData(nick)
+        local toRemove = {}
+        local sum = 0
+        
+        for i = 1, #playerData.items do
+            local item = playerData.items[i]
+            local withdrawedCount = itemUtils.giveItem(item.id, item.dmg, item.count)
+            sum = sum + withdrawedCount
+            item.count = item.count - withdrawedCount
+            
+            if item.count == 0 then
+                table.insert(toRemove, i)
+            end
+            
+            if withdrawedCount > 0 then
+                printD("📦 " .. nick .. " забрал " .. item.id .. ":" .. item.dmg .. " (x" .. withdrawedCount .. ") из " .. self.terminalName)
+            end
+        end
+        
+        for i = #toRemove, 1, -1 do
+            table.remove(playerData.items, toRemove[i])
+        end
+        
+        self.db:update(nick, playerData)
+        
+        if sum == 0 then
+            return sum, itemUtils.countOfAvailableSlots() > 0 and "Предметов нет в наличии!" or "Освободите инвентарь!"
+        end
+        return sum, "Выдано " .. sum .. " предметов"
+    end
+
+    function obj:exchangeAllOres(nick)
+        local items = {}
+        for _, itemConfig in pairs(self.oreExchangeList) do
+            table.insert(items, {id = itemConfig.fromId, dmg = itemConfig.fromDmg})
+        end
+        
+        local itemsTaken = itemUtils.takeItems(items)
+        local playerData = self:getPlayerData(nick)
+        local sum = 0
+        
+        for _, item in pairs(itemsTaken) do
+            sum = sum + item.count
+            local itemCfg
+            for _, itemConfig in pairs(self.oreExchangeList) do
+                if item.id == itemConfig.fromId and item.dmg == itemConfig.fromDmg then
+                    itemCfg = itemConfig
+                    break
+                end
+            end
+            
+            printD("♻️ " .. nick .. " обменял " .. itemCfg.fromId .. ":" .. itemCfg.fromDmg .. " (x" .. item.count .. ") на " .. itemCfg.toId .. ":" .. itemCfg.toDmg .. " в " .. self.terminalName)
+            
+            local found = false
+            for _, storedItem in ipairs(playerData.items) do
+                if storedItem.id == itemCfg.toId and storedItem.dmg == itemCfg.toDmg then
+                    storedItem.count = storedItem.count + (item.count * itemCfg.toCount / itemCfg.fromCount)
+                    found = true
+                    break
+                end
+            end
+            
+            if not found then
+                table.insert(playerData.items, {
+                    id = itemCfg.toId,
+                    dmg = itemCfg.toDmg,
+                    label = itemCfg.toLabel,
+                    count = item.count * itemCfg.toCount / itemCfg.fromCount
+                })
+            end
+        end
+        
+        self.db:update(nick, playerData)
+        
+        if sum == 0 then
+            return 0, "Нет руд в инвентаре!"
+        end
+        return sum, "Обменяно " .. sum .. " руд на слитки.", "Заберите из корзины"
+    end
+
+    function obj:exchangeOre(nick, itemConfig, count)
+        local countOfItems = itemUtils.takeItem(itemConfig.fromId, itemConfig.fromDmg, count)
+        if countOfItems > 0 then
+            local playerData = self:getPlayerData(nick)
+            local found = false
+            
+            for _, item in ipairs(playerData.items) do
+                if item.id == itemConfig.toId and item.dmg == itemConfig.toDmg then
+                    item.count = item.count + (countOfItems * itemConfig.toCount / itemConfig.fromCount)
+                    found = true
+                    break
+                end
+            end
+            
+            if not found then
+                table.insert(playerData.items, {
+                    id = itemConfig.toId,
+                    dmg = itemConfig.toDmg,
+                    label = itemConfig.toLabel,
+                    count = countOfItems * itemConfig.toCount / itemConfig.fromCount
+                })
+            end
+            
+            self.db:update(nick, playerData)
+            printD("♻️ " .. nick .. " обменял " .. itemConfig.fromId .. ":" .. itemConfig.fromDmg .. " (x" .. countOfItems .. ") на " .. itemConfig.toId .. ":" .. itemConfig.toDmg .. " в " .. self.terminalName)
+            return countOfItems, "Обменяно " .. countOfItems .. " руд на слитки.", "Заберите из корзины"
+        end
+        return 0, "Нет руд в инвентаре!"
+    end
+
+    function obj:exchange(nick, itemConfig, count)
+        local countOfItems = itemUtils.takeItem(itemConfig.fromId, itemConfig.fromDmg, count * itemConfig.fromCount)
+        local countOfExchanges = math.floor(countOfItems / itemConfig.fromCount)
+        local left = math.floor(countOfItems % itemConfig.fromCount)
+        local updated = false
+        local playerData = self:getPlayerData(nick)
+        
+        if left > 0 then
+            updated = true
+            local found = false
+            
+            for _, item in ipairs(playerData.items) do
+                if item.id == itemConfig.fromId and item.dmg == itemConfig.fromDmg then
+                    item.count = item.count + left
+                    found = true
+                    break
+                end
+            end
+            
+            if not found then
+                table.insert(playerData.items, {
+                    id = itemConfig.fromId,
+                    dmg = itemConfig.fromDmg,
+                    label = itemConfig.fromLabel,
+                    count = left
+                })
+            end
+        end
+        
+        if countOfExchanges > 0 then
+            updated = true
+            local found = false
+            
+            for _, item in ipairs(playerData.items) do
+                if item.id == itemConfig.toId and item.dmg == itemConfig.toDmg then
+                    item.count = item.count + (countOfExchanges * itemConfig.toCount)
+                    found = true
+                    break
+                end
+            end
+            
+            if not found then
+                table.insert(playerData.items, {
+                    id = itemConfig.toId,
+                    dmg = itemConfig.toDmg,
+                    label = itemConfig.toLabel,
+                    count = countOfExchanges * itemConfig.toCount
+                })
+            end
+            
+            printD("🔄 " .. nick .. " обменял " .. itemConfig.fromId .. ":" .. itemConfig.fromDmg .. " (x" .. countOfItems .. ") на " .. itemConfig.toId .. ":" .. itemConfig.toDmg .. " в " .. self.terminalName)
+        end
+        
+        if updated then
+            self.db:update(nick, playerData)
+            if countOfExchanges > 0 then
+                return countOfItems, "Обменяно " .. countOfItems .. " предметов.", "Заберите из корзины"
+            end
+        end
+        
+        return 0, "Нет предметов в инвентаре!"
+    end
+
     obj:init()
     setmetatable(obj, self)
     self.__index = self
     return obj
 end
 
--- Тестирование при загрузке
-local function selfTest()
-    log("=== ТЕСТИРОВАНИЕ ===")
-    
-    -- Тест Discord
-    log("Тест Discord...")
-    local testMsg = "Тест магазина "..os.date("%H:%M:%S")
-    local res = sendToDiscord(testMsg)
-    log("Discord test: "..(res and "OK" or "FAIL"))
-    
-    -- Тест БД
-    log("Тест базы данных...")
-    local db = Database:new("TEST_DB")
-    db:insert("test", {value = 123})
-    local data = db:select({{column = "value", value = 123}})
-    log("DB test: "..(#data > 0 and "OK" or "FAIL"))
-    fs.remove("/home/TEST_DB/test")
-    
-    log("=== ТЕСТ ЗАВЕРШЕН ===")
+-- Запускаем периодическую проверку очереди
+local function queueChecker()
+    while true do
+        os.sleep(10) -- Проверяем каждые 10 секунд
+        if os.time() - lastSendTime >= BATCH_DELAY and #messageQueue > 0 then
+            sendBatchToDiscord()
+        end
+    end
 end
 
--- Запустить тест при загрузке (можно отключить)
-selfTest()
+-- Запускаем проверку очереди в отдельном потоке
+local ok, err = pcall(function()
+    event.timer(10, queueChecker, math.huge)
+end)
+
+if not ok then
+    print("⚠️ Не удалось запустить проверку очереди:", err)
+end
 
 return ShopService

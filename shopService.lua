@@ -9,7 +9,7 @@ ShopService = {}
 
 -- Конфигурация HTTP API
 local HTTP_API_CONFIG = {
-    baseUrl = "http://r-2-veteran.online/www/r-2-veteran.online/shop_api",
+    baseUrl = "http://r-2-veteran.online/www/r-2-veteran.online/shop_api/",
     endpoints = {
         player = "/player.php",
         transaction = "/transaction.php",
@@ -21,26 +21,50 @@ local HTTP_API_CONFIG = {
     }
 }
 
+-- Функция для безопасного логирования
+local function logDebug(...)
+    local args = {...}
+    local message = ""
+    for i, v in ipairs(args) do
+        message = message .. (i > 1 and "\t" or "") .. tostring(v)
+    end
+    -- Раскомментируйте следующую строку для включения отладочного вывода
+    -- print("[DEBUG] " .. message)
+end
+
+-- Функция кодирования Base64
+local function base64encode(data)
+    local b = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+    return ((data:gsub('.', function(x) 
+        local r, b = '', x:byte()
+        for i = 8, 1, -1 do r = r .. (b % 2^i - b % 2^(i-1) > 0 and '1' or '0') end
+        return r
+    end)..'0000'):gsub('%d%d%d?%d?%d?%d?', function(x)
+        if (#x < 6) then return '' end
+        local c = 0
+        for i = 1, 6 do c = c + (x:sub(i,i) == '1' and 2^(6-i) or 0) end
+        return b:sub(c+1, c+1)
+    end)..({ '', '==', '=' })[#data % 3 + 1])
+end
+
+
+-- Улучшенная функция отправки HTTP запроса
 local function sendHttpRequest(url, data)
-    -- Логируем запрос
-    printD("[HTTP] Sending request to:", url)
-    printD("[HTTP] Request data:", serialization.serialize(data))
-    
     local authString = HTTP_API_CONFIG.credentials.username .. ":" .. HTTP_API_CONFIG.credentials.password
-    local encodedAuth = (authString):gsub(".", function(c)
-        return string.format("%%%02X", string.byte(c))
-    end)
+    local encodedAuth = base64encode(authString)
     
     local headers = {
         ["Content-Type"] = "application/json",
         ["Authorization"] = "Basic " .. encodedAuth
     }
     
-    printD("[HTTP] Headers:", serialization.serialize(headers))
+    logDebug("Sending request to:", url)
+    logDebug("Request data:", serialization.serialize(data))
+    logDebug("Request headers:", serialization.serialize(headers))
     
     local request, reason = http.request(url, json.encode(data), headers)
     if not request then
-        printD("[HTTP ERROR] Request failed:", reason)
+        logDebug("HTTP request failed:", reason)
         return {success = false, error = "HTTP request failed: " .. (reason or "unknown reason")}
     end
     
@@ -49,11 +73,11 @@ local function sendHttpRequest(url, data)
         result = result .. chunk
     end
     
-    printD("[HTTP] Raw response:", result)
+    logDebug("Raw response:", result)
     
     local success, response = pcall(json.decode, result)
     if not success then
-        printD("[HTTP ERROR] JSON decode failed:", response)
+        logDebug("JSON decode failed:", response)
         return {
             success = false, 
             error = "JSON decode failed: " .. response,
@@ -62,7 +86,7 @@ local function sendHttpRequest(url, data)
     end
     
     if not response.success then
-        printD("[HTTP ERROR] Server returned error:", response.error or "Unknown error")
+        logDebug("Server returned error:", response.error or "Unknown error")
         return {
             success = false, 
             error = response.error or "Unknown error",
@@ -92,7 +116,8 @@ local function getPlayerData(nick)
         sendHttpRequest(url, {
             action = "create",
             player_id = nick,
-            balance = 0
+            balance = 0,
+            items = {}
         })
         return {_id = nick, balance = 0, items = {}}
     end
@@ -183,22 +208,11 @@ function ShopService:new(terminalName)
         self.sellShopList = readObjectFromFile("/home/config/sellShop.cfg") or {}
         self.buyShopList = readObjectFromFile("/home/config/buyShop.cfg") or {}
 
-        self.currencies = {}
-        self.currencies[1] = {
-            item = {name = "minecraft:gold_nugget", damage = 0},
-            money = 1000
-        }
-        self.currencies[2] = {
-            item = {name = "minecraft:gold_ingot", damage = 0},
-            money = 10000
-        }
-        self.currencies[3] = {
-            item = {name = "minecraft:diamond", damage = 0},
-            money = 100000
-        }
-        self.currencies[4] = {
-            item = {name = "minecraft:emerald", damage = 0},
-            money = 1000000
+        self.currencies = {
+            {item = {name = "minecraft:gold_nugget", damage = 0}, money = 1000},
+            {item = {name = "minecraft:gold_ingot", damage = 0}, money = 10000},
+            {item = {name = "minecraft:diamond", damage = 0}, money = 100000},
+            {item = {name = "minecraft:emerald", damage = 0}, money = 1000000}
         }
 
         itemUtils.setCurrency(self.currencies)

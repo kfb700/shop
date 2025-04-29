@@ -1,128 +1,74 @@
-local component = require("component")
-local itemUtils = require("ItemUtils")
-local event = require("event")
-local serialization = require("serialization")
-local http = require("internet")
-local json = require("json")
+<?php
+header('Content-Type: application/json');
 
-ShopService = {}
+// Включим логирование
+file_put_contents('api_log.txt', date('Y-m-d H:i:s') . " - Request started\n", FILE_APPEND);
 
--- Конфигурация HTTP API
-local HTTP_API_CONFIG = {
-    baseUrl = "http://r-2-veteran.online/www/r-2-veteran.online/shop_api/",
-    endpoints = {
-        player = "player.php",
-        transaction = "transaction.php",
-        item = "item.php"
-    },
-    credentials = {
-        username = "068004",
-        password = "zZ53579"
-    }
+// Проверка авторизации через GET параметры
+$valid_username = "068004";
+$valid_password = "zZ53579";
+
+// Логируем все входные данные
+file_put_contents('api_log.txt', "GET params:\n" . print_r($_GET, true) . "\n", FILE_APPEND);
+file_put_contents('api_log.txt', "Headers:\n" . print_r(getallheaders(), true) . "\n", FILE_APPEND);
+
+// Проверяем авторизацию
+if (!isset($_GET['auth_user']) || !isset($_GET['auth_pass'])) {
+    file_put_contents('api_log.txt', "No auth params\n", FILE_APPEND);
+    die(json_encode([
+        'success' => false, 
+        'error' => 'Access denied',
+        'details' => 'No authentication parameters'
+    ]));
 }
 
--- Функция для безопасного логирования
-local function logDebug(...)
-    local args = {...}
-    local message = ""
-    for i, v in ipairs(args) do
-        message = message .. (i > 1 and "\t" or "") .. tostring(v)
-    end
-    print("[DEBUG] " .. message)
-end
+if ($_GET['auth_user'] != $valid_username || $_GET['auth_pass'] != $valid_password) {
+    file_put_contents('api_log.txt', "Invalid credentials\n", FILE_APPEND);
+    die(json_encode([
+        'success' => false, 
+        'error' => 'Access denied',
+        'details' => 'Invalid credentials'
+    ]));
+}
 
--- Функция кодирования Base64
-local function base64encode(data)
-    local b = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
-    return ((data:gsub('.', function(x) 
-        local r, b = '', x:byte()
-        for i = 8, 1, -1 do r = r .. (b % 2^i - b % 2^(i-1) > 0 and '1' or '0') end
-        return r
-    end)..'0000'):gsub('%d%d%d?%d?%d?%d?', function(x)
-        if (#x < 6) then return '' end
-        local c = 0
-        for i = 1, 6 do c = c + (x:sub(i,i) == '1' and 2^(6-i) or 0) end
-        return b:sub(c+1, c+1)
-    end)..({ '', '==', '=' })[#data % 3 + 1])
-end
+// Логируем входные данные
+$input = json_decode(file_get_contents('php://input'), true);
+file_put_contents('api_log.txt', "Input data:\n" . print_r($input, true) . "\n", FILE_APPEND);
 
--- Улучшенная функция отправки HTTP запроса
-local function sendHttpRequest(url, data)
-    local authString = HTTP_API_CONFIG.credentials.username .. ":" .. HTTP_API_CONFIG.credentials.password
-    local encodedAuth = base64encode(authString)
+require_once 'db_connect.php';
+
+try {
+    $pdo = connectDB();
     
-    local headers = {
-        ["Content-Type"] = "application/json",
-        ["Authorization"] = "Basic " .. encodedAuth,
-        ["User-Agent"] = "OCShopSystem/1.0"
+    switch ($input['action']) {
+        case 'get':
+            // Получаем данные игрока
+            $stmt = $pdo->prepare("SELECT * FROM players WHERE player_id = ?");
+            $stmt->execute([$input['player_id']]);
+            $player = $stmt->fetch();
+            
+            if ($player) {
+                // Получаем предметы игрока
+                $stmt = $pdo->prepare("SELECT * FROM player_items WHERE player_id = ?");
+                $stmt->execute([$input['player_id']]);
+                $items = $stmt->fetchAll();
+                
+                echo json_encode([
+                    'success' => true,
+                    'balance' => $player['balance'],
+                    'items' => $items
+                ]);
+            } else {
+                echo json_encode(['success' => false, 'error' => 'Player not found']);
+            }
+            break;
+            
+        // ... остальные case ...
     }
-    
-    logDebug("Sending request to:", url)
-    logDebug("Request data:", serialization.serialize(data))
-    logDebug("Request headers:", serialization.serialize(headers))
-    
-    -- Добавляем явное указание метода для GET запросов
-    local method = data and "POST" or "GET"
-    local requestData = data and json.encode(data) or nil
-    
-    -- Альтернативный вариант отправки запроса
-    local request, reason
-    if method == "POST" then
-        request, reason = http.request(url, requestData, headers)
-    else
-        -- Для GET запросов передаем nil в качестве данных
-        request, reason = http.request(url, nil, headers)
-    end
-    
-    if not request then
-        logDebug("HTTP request failed:", reason)
-        return {
-            success = false, 
-            error = "HTTP request failed: " .. (reason or "unknown reason"),
-            details = "Check internet connection and URL"
-        }
-    end
-    
-    -- Чтение ответа
-    local result = ""
-    for chunk in request do
-        result = result .. chunk
-    end
-    
-    logDebug("Raw response:", result)
-    
-    -- Обработка ответа
-    if result:find("401 Unauthorized") then
-        return {
-            success = false,
-            error = "Authentication failed",
-            details = "Server rejected our credentials"
-        }
-    end
-    
-    local success, response = pcall(json.decode, result)
-    if not success then
-        logDebug("JSON decode failed:", response)
-        return {
-            success = false, 
-            error = "JSON decode failed: " .. response,
-            raw_response = result,
-            details = "Invalid server response format"
-        }
-    end
-    
-    if not response or not response.success then
-        logDebug("Server returned error:", response and response.error or "Unknown error")
-        return {
-            success = false, 
-            error = response and response.error or "Unknown error",
-            response = response,
-            details = "Server reported an error"
-        }
-    end
-    
-    return response
-end
+} catch (PDOException $e) {
+    echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+}
+?>
 
 -- Функция для работы с игроком
 local function getPlayerData(nick)

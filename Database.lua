@@ -16,6 +16,37 @@ Database.__index = Database
 ---@return Database новый экземпляр
 ---@usage local Database = require('database')
 ---local db = Database:new("players_data")
+Database = {
+    new = function(self, tableName)
+        local db = component.proxy(component.list("database")())
+        if not db then error("Не найдена база данных") end
+        
+        -- Создаём таблицы при первом запуске
+        if not db.get(tableName .. "_players") then
+            db.set(tableName .. "_players", {})
+        end
+        if not db.get(tableName .. "_items") then
+            db.set(tableName .. "_items", {})
+        end
+        if not db.get(tableName .. "_transactions") then
+            db.set(tableName .. "_transactions", {})
+        end
+        
+        return {
+            select = function(_, query) return db.get(tableName .. "_players") end,
+            insert = function(_, id, data) 
+                local players = db.get(tableName .. "_players") or {}
+                players[id] = data
+                db.set(tableName .. "_players", players)
+                return true
+            end,
+            update = function(_, id, data) 
+                return self:insert(id, data)
+            end
+        }
+    end
+}
+
 function Database:new(directory)
     local obj = setmetatable({}, self)
     obj.directory = "/home/"..directory  -- Явно указываем полный путь

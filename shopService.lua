@@ -21,17 +21,26 @@ local HTTP_API_CONFIG = {
     }
 }
 
--- Функция отправки HTTP запроса
 local function sendHttpRequest(url, data)
+    -- Логируем запрос
+    printD("[HTTP] Sending request to:", url)
+    printD("[HTTP] Request data:", serialization.serialize(data))
+    
+    local authString = HTTP_API_CONFIG.credentials.username .. ":" .. HTTP_API_CONFIG.credentials.password
+    local encodedAuth = (authString):gsub(".", function(c)
+        return string.format("%%%02X", string.byte(c))
+    end)
+    
     local headers = {
         ["Content-Type"] = "application/json",
-        ["Authorization"] = "Basic " .. (HTTP_API_CONFIG.credentials.username .. ":" .. HTTP_API_CONFIG.credentials.password):gsub(".", function(c)
-            return string.format("%%%02X", string.byte(c))
-        end)
+        ["Authorization"] = "Basic " .. encodedAuth
     }
+    
+    printD("[HTTP] Headers:", serialization.serialize(headers))
     
     local request, reason = http.request(url, json.encode(data), headers)
     if not request then
+        printD("[HTTP ERROR] Request failed:", reason)
         return {success = false, error = "HTTP request failed: " .. (reason or "unknown reason")}
     end
     
@@ -40,13 +49,25 @@ local function sendHttpRequest(url, data)
         result = result .. chunk
     end
     
+    printD("[HTTP] Raw response:", result)
+    
     local success, response = pcall(json.decode, result)
     if not success then
-        return {success = false, error = "JSON decode failed: " .. response}
+        printD("[HTTP ERROR] JSON decode failed:", response)
+        return {
+            success = false, 
+            error = "JSON decode failed: " .. response,
+            raw_response = result
+        }
     end
     
     if not response.success then
-        return {success = false, error = response.error or "Unknown error"}
+        printD("[HTTP ERROR] Server returned error:", response.error or "Unknown error")
+        return {
+            success = false, 
+            error = response.error or "Unknown error",
+            response = response
+        }
     end
     
     return response

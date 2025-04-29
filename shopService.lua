@@ -9,7 +9,7 @@ ShopService = {}
 
 -- Конфигурация HTTP API
 local HTTP_API_CONFIG = {
-    baseUrl = "http://r-2-veteran.online/www/r-2-veteran.online/shop_api",
+    baseUrl = "http://r-2-veteran.online/www/r-2-veteran.online/shop_api/",
     endpoints = {
         player = "/player.php",
         transaction = "/transaction.php",

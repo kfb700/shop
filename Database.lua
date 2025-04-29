@@ -8,7 +8,7 @@ Database = {}
 function Database:new(dbName)
     local obj = {
         dbName = dbName,
-        baseUrl = "http://r-2-veteran.online/shop_api/",
+        baseUrl = "http://r-2-veteran.online/www/r-2-veteran.online/shop_api/",
         credentials = {
             username = "068004",
             password = "zZ53579"

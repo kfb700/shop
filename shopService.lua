@@ -28,18 +28,17 @@ local function sendHttpRequest(url, data)
         ["Content-Type"] = "application/json",
         ["Authorization"] = authString
     })
-        
-        local result = ""
-        for chunk in request do
-            result = result .. chunk
-        end
-        
-        return json.decode(result) or {}
+    
+    local result = ""
+    for chunk in request do
+        result = result .. chunk
     end
     
-    if not success then
-        print("[HTTP ERROR] " .. tostring(response))
-        return {success = false, error = response}
+    local response = json.decode(result) or {}
+    
+    if not response.success then
+        print("[HTTP ERROR] " .. tostring(response.error or "Unknown error"))
+        return {success = false, error = response.error or "Unknown error"}
     end
     
     return response

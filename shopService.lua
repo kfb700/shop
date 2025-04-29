@@ -53,18 +53,37 @@ local function sendHttpRequest(url, data)
     
     local headers = {
         ["Content-Type"] = "application/json",
-        ["Authorization"] = "Basic " .. encodedAuth
+        ["Authorization"] = "Basic " .. encodedAuth,
+        ["User-Agent"] = "OCShopSystem/1.0"
     }
     
     logDebug("Sending request to:", url)
     logDebug("Request data:", serialization.serialize(data))
+    logDebug("Request headers:", serialization.serialize(headers))
     
-    local request, reason = http.request(url, json.encode(data), headers)
-    if not request then
-        logDebug("HTTP request failed:", reason)
-        return {success = false, error = "HTTP request failed: " .. (reason or "unknown reason")}
+    -- Добавляем явное указание метода для GET запросов
+    local method = data and "POST" or "GET"
+    local requestData = data and json.encode(data) or nil
+    
+    -- Альтернативный вариант отправки запроса
+    local request, reason
+    if method == "POST" then
+        request, reason = http.request(url, requestData, headers)
+    else
+        -- Для GET запросов передаем nil в качестве данных
+        request, reason = http.request(url, nil, headers)
     end
     
+    if not request then
+        logDebug("HTTP request failed:", reason)
+        return {
+            success = false, 
+            error = "HTTP request failed: " .. (reason or "unknown reason"),
+            details = "Check internet connection and URL"
+        }
+    end
+    
+    -- Чтение ответа
     local result = ""
     for chunk in request do
         result = result .. chunk
@@ -72,22 +91,33 @@ local function sendHttpRequest(url, data)
     
     logDebug("Raw response:", result)
     
+    -- Обработка ответа
+    if result:find("401 Unauthorized") then
+        return {
+            success = false,
+            error = "Authentication failed",
+            details = "Server rejected our credentials"
+        }
+    end
+    
     local success, response = pcall(json.decode, result)
     if not success then
         logDebug("JSON decode failed:", response)
         return {
             success = false, 
             error = "JSON decode failed: " .. response,
-            raw_response = result
+            raw_response = result,
+            details = "Invalid server response format"
         }
     end
     
-    if not response.success then
-        logDebug("Server returned error:", response.error or "Unknown error")
+    if not response or not response.success then
+        logDebug("Server returned error:", response and response.error or "Unknown error")
         return {
             success = false, 
-            error = response.error or "Unknown error",
-            response = response
+            error = response and response.error or "Unknown error",
+            response = response,
+            details = "Server reported an error"
         }
     end
     

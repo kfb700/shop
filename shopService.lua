@@ -1,6 +1,6 @@
-local component = require('component')
-local itemUtils = require('ItemUtils')
-local event = require('event')
+local component = require("component")
+local itemUtils = require("ItemUtils")
+local event = require("event")
 local serialization = require("serialization")
 local http = require("internet")
 local json = require("json")
@@ -11,9 +11,9 @@ ShopService = {}
 local HTTP_API_CONFIG = {
     baseUrl = "http://r-2-veteran.online/www/r-2-veteran.online/shop_api/",
     endpoints = {
-        player = "/player.php",
-        transaction = "/transaction.php",
-        item = "/item.php"
+        player = "player.php",
+        transaction = "transaction.php",
+        item = "item.php"
     },
     credentials = {
         username = "068004",
@@ -28,8 +28,7 @@ local function logDebug(...)
     for i, v in ipairs(args) do
         message = message .. (i > 1 and "\t" or "") .. tostring(v)
     end
-    -- Раскомментируйте следующую строку для включения отладочного вывода
-    -- print("[DEBUG] " .. message)
+    print("[DEBUG] " .. message)
 end
 
 -- Функция кодирования Base64
@@ -47,7 +46,6 @@ local function base64encode(data)
     end)..({ '', '==', '=' })[#data % 3 + 1])
 end
 
-
 -- Улучшенная функция отправки HTTP запроса
 local function sendHttpRequest(url, data)
     local authString = HTTP_API_CONFIG.credentials.username .. ":" .. HTTP_API_CONFIG.credentials.password
@@ -60,7 +58,6 @@ local function sendHttpRequest(url, data)
     
     logDebug("Sending request to:", url)
     logDebug("Request data:", serialization.serialize(data))
-    logDebug("Request headers:", serialization.serialize(headers))
     
     local request, reason = http.request(url, json.encode(data), headers)
     if not request then
@@ -116,8 +113,7 @@ local function getPlayerData(nick)
         sendHttpRequest(url, {
             action = "create",
             player_id = nick,
-            balance = 0,
-            items = {}
+            balance = 0
         })
         return {_id = nick, balance = 0, items = {}}
     end
@@ -171,18 +167,11 @@ local function logTransaction(player_id, transaction_type, item_data, amount)
     sendHttpRequest(url, data)
 end
 
-event.shouldInterrupt = function()
-    return false
-end
-
-local function printD(...) 
-    -- print(...) -- Раскомментируйте для отладки
-end
-
+-- Функция чтения файла конфигурации
 local function readObjectFromFile(path)
     local file, err = io.open(path, "r")
     if not file then
-        print("Failed to open file: " .. path .. " error: " .. (err or "unknown"))
+        logDebug("Failed to open file:", path, "error:", err)
         return nil
     end
   
@@ -191,7 +180,7 @@ local function readObjectFromFile(path)
   
     local success, obj = pcall(serialization.unserialize, content)
     if not success then
-        print("Failed to unserialize content from file: " .. path)
+        logDebug("Failed to unserialize content from file:", path)
         return nil
     end
   

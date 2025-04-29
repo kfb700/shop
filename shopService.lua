@@ -23,11 +23,11 @@ local HTTP_API_CONFIG = {
 
 -- Улучшенная версия функции sendHttpRequest
 local function sendHttpRequest(url, data)
-    local success, response = pcall(function()
-        local request = http.request(url, json.encode(data), {
-            ["Content-Type"] = "application/json",
-            ["Authorization"] = HTTP_API_CONFIG.credentials.username .. ":" .. HTTP_API_CONFIG.credentials.password
-        })
+    local authString = "Basic " .. (HTTP_API_CONFIG.credentials.username .. ":" .. HTTP_API_CONFIG.credentials.password):toBase64()
+    local request = http.request(url, json.encode(data), {
+        ["Content-Type"] = "application/json",
+        ["Authorization"] = authString
+    })
         
         local result = ""
         for chunk in request do

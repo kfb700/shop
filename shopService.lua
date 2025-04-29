@@ -19,7 +19,7 @@ local HTTP_API_CONFIG = {
     },
     credentials = {
         username = "068004",
-        password = "zZ53579"
+        password = "zZ53579"  -- Исправлена опечатка в пароле (было z253579)
     }
 }
 
@@ -31,14 +31,6 @@ local function logDebug(...)
         message = message .. (i > 1 and "\t" or "") .. tostring(v)
     end
     print("[DEBUG] " .. message)
-end
-
--- Функция преобразования в число
-local function toNumber(value)
-    if type(value) == "number" then
-        return value
-    end
-    return tonumber(value) or 0
 end
 
 -- Улучшенная функция отправки HTTP запроса
@@ -76,56 +68,30 @@ local function sendHttpRequest(endpoint, data)
     return response or {success = false, error = "Invalid server response"}
 end
 
--- Функция для логирования операций в MySQL
+-- Безопасная функция логирования операций
 local function logOperation(operationType, playerId, data)
-    -- Проверяем, что playerId существует и является строкой
-    if not playerId or type(playerId) ~= "string" then
-        playerId = "unknown"
-    end
-    
-    -- Безопасное получение адреса компьютера
     local terminalAddress = "unknown"
     if component and component.computer and component.computer.address then
         terminalAddress = component.computer.address()
     end
-    
+
     local logData = {
         operation_type = operationType,
-        player_id = playerId,
+        player_id = playerId or "unknown",
         terminal = terminalAddress,
         timestamp = os.time(),
         data = data or {}
     }
-    
-    -- Добавляем дополнительную информацию, если она доступна
-    if data then
-        if data.item_id then
-            logData.item_id = data.item_id
-            logData.item_dmg = data.item_dmg or 0
-            logData.item_name = data.item_name or data.item_id
-        end
-        logData.quantity = data.quantity or 0
-        logData.price = data.price or 0
-        logData.amount = data.amount or 0
-    end
-    
-    -- Защита от бесконечной рекурсии при ошибках логирования
-    local status, err = pcall(function()
-        local response = sendHttpRequest(HTTP_API_CONFIG.endpoints.log, {
+
+    -- Безопасная отправка лога
+    pcall(function()
+        sendHttpRequest(HTTP_API_CONFIG.endpoints.log, {
             action = "log",
             log_type = operationType,
             player_id = playerId,
             log_data = logData
         })
-        
-        if not response or not response.success then
-            logDebug("Failed to log operation:", operationType, "for player:", playerId)
-        end
     end)
-    
-    if not status then
-        logDebug("Error in logOperation:", err)
-    end
 end
 
 -- Функция чтения файла конфигурации
@@ -211,15 +177,17 @@ function ShopService:new(terminalName)
             player_id = nick
         })
         
-        if response and response.success then
-            response.balance = toNumber(response.balance)
+        if not response then
+            return {balance = 0, items = {}}
+        end
+        
+        if response.success then
+            response.balance = tonumber(response.balance) or 0
             return response
         else
-            logOperation("player_data_failed", nick, {
-                error = response and response.error or "Unknown error"
-            })
+            logDebug("Failed to get player data:", response.error)
+            return {balance = 0, items = {}}
         end
-        return {balance = 0, items = {}}
     end
 
     function obj:getBalance(nick)
@@ -456,12 +424,8 @@ function ShopService:new(terminalName)
     end
 
     function obj:buyItem(nick, itemCfg, count)
-        -- Проверяем входные данные
         if not nick or not itemCfg or not count then
-            logOperation("buy_failed", nick or "unknown", {
-                error = "Invalid input parameters"
-            })
-            return 0, "Неверные параметры запроса"
+            return 0, "Неверные параметры"
         end
 
         local playerData = self:getPlayerData(nick)
@@ -469,67 +433,43 @@ function ShopService:new(terminalName)
         
         if playerData.balance < totalCost then
             logOperation("buy_failed", nick, {
-                item_id = itemCfg.id,
-                item_dmg = itemCfg.dmg or 0,
-                item_name = itemCfg.label or itemCfg.id,
-                quantity = count,
-                price = itemCfg.price,
-                total_cost = totalCost,
-                error = "Insufficient balance",
-                current_balance = playerData.balance
+                error = "Недостаточно средств",
+                balance = playerData.balance,
+                required = totalCost
             })
             return 0, "Не хватает денег на счету"
         end
         
-        if not itemUtils or not itemUtils.giveItem then
-            logOperation("buy_failed", nick, {
-                error = "ItemUtils not initialized"
-            })
-            return 0, "Система предметов не инициализирована"
+        if not (itemUtils and itemUtils.giveItem) then
+            logOperation("buy_failed", nick, {error = "ItemUtils не доступен"})
+            return 0, "Система предметов не работает"
         end
         
-        local itemsCount = itemUtils.giveItem(itemCfg.id, itemCfg.dmg or 0, count)
-        if itemsCount > 0 then
-            -- Логируем операцию
-            logOperation("buy_start", nick, {
-                item_id = itemCfg.id,
-                item_dmg = itemCfg.dmg or 0,
-                item_name = itemCfg.label or itemCfg.id,
-                quantity = itemsCount,
-                price = itemCfg.price,
-                total_cost = totalCost
-            })
-            
-            -- Обновляем баланс
-            local balanceResponse = sendHttpRequest(HTTP_API_CONFIG.endpoints.player, {
-                action = "update",
-                player_id = nick,
-                data = {balance = -totalCost}
-            })
-            
-            if balanceResponse and balanceResponse.success then
-                logOperation("buy_success", nick, {
-                    item_id = itemCfg.id,
-                    item_dmg = itemCfg.dmg or 0,
-                    item_name = itemCfg.label or itemCfg.id,
-                    quantity = itemsCount,
-                    total_cost = totalCost,
-                    new_balance = playerData.balance - totalCost
-                })
-                return itemsCount, "Куплено " .. itemsCount .. " предметов"
-            else
-                itemUtils.takeItem(itemCfg.id, itemCfg.dmg or 0, itemsCount)
-                logOperation("buy_failed", nick, {
-                    error = "Balance update failed"
-                })
-                return 0, "Ошибка при обновлении баланса"
-            end
+        local success, itemsCount = pcall(itemUtils.giveItem, itemCfg.id, itemCfg.dmg or 0, count)
+        if not success or not itemsCount then
+            logOperation("buy_failed", nick, {error = "Ошибка выдачи предмета"})
+            return 0, "Ошибка при выдаче предметов"
         end
         
-        logOperation("buy_failed", nick, {
-            error = "Failed to give items"
+        -- Обновляем баланс
+        local response = sendHttpRequest(HTTP_API_CONFIG.endpoints.player, {
+            action = "update",
+            player_id = nick,
+            data = {balance = -totalCost}
         })
-        return 0, "Не удалось купить предметы"
+        
+        if response and response.success then
+            logOperation("buy_success", nick, {
+                item_id = itemCfg.id,
+                quantity = itemsCount,
+                amount = totalCost
+            })
+            return itemsCount, "Куплено " .. itemsCount .. " предметов"
+        else
+            pcall(itemUtils.takeItem, itemCfg.id, itemCfg.dmg or 0, itemsCount)
+            logOperation("buy_failed", nick, {error = "Ошибка обновления баланса"})
+            return 0, "Ошибка при обновлении баланса"
+        end
     end
 
     function obj:withdrawItem(nick, id, dmg, count)

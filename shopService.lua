@@ -125,6 +125,8 @@ function ShopService:new(terminalName)
         -- Загрузка конфигураций
         self.sellShopList = self:loadConfig("/home/config/sellShop.cfg")
         self.buyShopList = self:loadConfig("/home/config/buyShop.cfg")
+        self.oreExchangeList = self:loadConfig("/home/config/oreExchanger.cfg")
+        self.exchangeList = self:loadConfig("/home/config/exchanger.cfg")
         
         -- Настройка валюты
         self.currencies = {
@@ -171,6 +173,18 @@ function ShopService:new(terminalName)
         return playerData.balance
     end
 
+    function obj:getItems(nick)
+        local response = sendHttpRequest(HTTP_API_CONFIG.endpoints.item, {
+            action = "get",
+            player_id = nick
+        })
+        
+        if response and response.success then
+            return response.items or {}
+        end
+        return {}
+    end
+
     function obj:getSellShopList(category)
         if not self.sellShopList or #self.sellShopList == 0 then
             self.sellShopList = self:loadConfig("/home/config/sellShop.cfg")
@@ -207,6 +221,25 @@ function ShopService:new(terminalName)
         end
         
         return filtered
+    end
+
+    function obj:getOreExchangeList()
+        if not self.oreExchangeList or #self.oreExchangeList == 0 then
+            self.oreExchangeList = self:loadConfig("/home/config/oreExchanger.cfg")
+        end
+        return self.oreExchangeList
+    end
+
+    function obj:getExchangeList()
+        if not self.exchangeList or #self.exchangeList == 0 then
+            self.exchangeList = self:loadConfig("/home/config/exchanger.cfg")
+        end
+        return self.exchangeList
+    end
+
+    function obj:getItemCount(nick)
+        local items = self:getItems(nick)
+        return #items
     end
 
     function obj:depositMoney(nick, count)
@@ -370,6 +403,143 @@ function ShopService:new(terminalName)
             end
         end
         return 0, "Не удалось купить предметы"
+    end
+
+    function obj:withdrawItem(nick, id, dmg, count)
+        local items = self:getItems(nick)
+        local itemToWithdraw = nil
+        
+        for _, item in ipairs(items) do
+            if item.id == id and (not dmg or item.dmg == dmg) then
+                itemToWithdraw = item
+                break
+            end
+        end
+        
+        if not itemToWithdraw then
+            return 0, "Предмет не найден в хранилище"
+        end
+        
+        if itemToWithdraw.count < count then
+            return 0, "Недостаточно предметов в хранилище"
+        end
+        
+        if not itemUtils or not itemUtils.giveItem then
+            return 0, "ItemUtils not properly initialized"
+        end
+        
+        local itemsCount = itemUtils.giveItem(id, dmg or 0, count)
+        if itemsCount > 0 then
+            -- Обновляем предмет
+            local response = sendHttpRequest(HTTP_API_CONFIG.endpoints.item, {
+                action = "update",
+                player_id = nick,
+                item_id = id,
+                item_dmg = dmg or 0,
+                delta = -itemsCount
+            })
+            
+            if response and response.success then
+                return itemsCount, "Выдано " .. itemsCount .. " предметов"
+            else
+                itemUtils.takeItem(id, dmg or 0, itemsCount)
+                return 0, "Ошибка при обновлении хранилища"
+            end
+        end
+        return 0, "Не удалось выдать предметы"
+    end
+
+    function obj:withdrawAll(nick)
+        local items = self:getItems(nick)
+        local totalWithdrawn = 0
+        
+        for _, item in ipairs(items) do
+            if item.count > 0 then
+                local count, _ = self:withdrawItem(nick, item.id, item.dmg, item.count)
+                totalWithdrawn = totalWithdrawn + count
+            end
+        end
+        
+        if totalWithdrawn > 0 then
+            return totalWithdrawn, "Выдано " .. totalWithdrawn .. " предметов"
+        end
+        return 0, "Нет предметов для выдачи"
+    end
+
+    function obj:exchangeOre(nick, item, count)
+        if not item or not item.from or not item.to then
+            return 0, "Неверный предмет для обмена", ""
+        end
+        
+        if not itemUtils or not itemUtils.takeItem or not itemUtils.giveItem then
+            return 0, "ItemUtils not properly initialized", ""
+        end
+        
+        local totalTake = count * item.fromCount
+        local totalGive = count * item.toCount
+        
+        local taken = itemUtils.takeItem(item.from, item.fromDmg or 0, totalTake)
+        if taken < totalTake then
+            return 0, "Недостаточно предметов для обмена", string.format("Нужно %d, есть %d", totalTake, taken)
+        end
+        
+        local given = itemUtils.giveItem(item.to, item.toDmg or 0, totalGive)
+        if given < totalGive then
+            itemUtils.giveItem(item.from, item.fromDmg or 0, taken) -- Возвращаем обратно
+            return 0, "Не удалось выдать предметы", string.format("Нужно выдать %d", totalGive)
+        end
+        
+        return count, string.format("Обменяно %d на %d", totalTake, totalGive), ""
+    end
+
+    function obj:exchangeAllOres(nick)
+        local items = self:getOreExchangeList()
+        local totalExchanged = 0
+        local messages = {}
+        
+        for _, item in ipairs(items) do
+            local maxCount = math.floor(itemUtils.getItemCount(item.from, item.fromDmg or 0) / item.fromCount)
+            if maxCount > 0 then
+                local count, msg = self:exchangeOre(nick, item, maxCount)
+                if count > 0 then
+                    totalExchanged = totalExchanged + count
+                    table.insert(messages, msg)
+                end
+            end
+        end
+        
+        if totalExchanged > 0 then
+            return totalExchanged, "Обмен завершен", table.concat(messages, "\n")
+        end
+        return 0, "Нет предметов для обмена", ""
+    end
+
+    function obj:exchange(nick, item, count)
+        if not item or not item.from or not item.to then
+            return 0, "Неверный предмет для обмена", ""
+        end
+        
+        if not itemUtils or not itemUtils.takeItem or not itemUtils.giveItem then
+            return 0, "ItemUtils not properly initialized", ""
+        end
+        
+        local totalTake = count * item.fromCount
+        local totalGive = count * item.toCount
+        
+        local taken = itemUtils.takeItem(item.from, item.fromDmg or 0, totalTake)
+        if taken < totalTake then
+            return 0, "Недостаточно предметов для обмена", string.format("Нужно %d, есть %d", totalTake, taken)
+        end
+        
+        local given = itemUtils.giveItem(item.to, item.toDmg or 0, totalGive)
+        if given < totalGive then
+            itemUtils.giveItem(item.from, item.fromDmg or 0, taken) -- Возвращаем обратно
+            return 0, "Не удалось выдать предметы", string.format("Нужно выдать %d", totalGive)
+        end
+        
+        return count, string.format("Обменяно %d %s на %d %s", 
+            totalTake, item.fromLabel or item.from, 
+            totalGive, item.toLabel or item.to), ""
     end
 
     -- Инициализация

@@ -1,6 +1,6 @@
 local component = require('component')
 local computer = require('computer')
-local forms = require("forms") -- подключаем библиотеку
+local forms = require("forms")
 local gpu = component.gpu
 local unicode = require('unicode')
 gpu.setResolution(80, 25)
@@ -18,7 +18,6 @@ local BuyShopForm
 local RulesForm
 
 local nickname = ""
-
 local timer
 
 function createNotification(status, text, secondText, callback)
@@ -63,34 +62,32 @@ function createNumberEditForm(callback, form, buttonText)
 end
 
 function createAutorizationForm()
-    local AutorizationForm = forms.addForm() -- создаем основную форму
+    local AutorizationForm = forms.addForm()
     AutorizationForm.border = 1
     
-
     local authorLabel = AutorizationForm:addLabel(32, 25, " Автор: 3_1415926535 ")
     authorLabel.fontColor = 0x00FDFF
 
-local nameLabel1 = AutorizationForm:addLabel(11, 3, " ____            _                     ")
-local nameLabel2 = AutorizationForm:addLabel(11, 4, "|  _ \\          | |                    ")
-local nameLabel3 = AutorizationForm:addLabel(11, 5, "| |_) |   ___   | |__     ___   _ __   ")
-local nameLabel4 = AutorizationForm:addLabel(11, 6, "|  _ <   / _ \\  | '_ \\   / _ \\ | '__|  ")
-local nameLabel5 = AutorizationForm:addLabel(11, 7, "| |_) | | (_) | | |_) | |  __/ | |     ")
-local nameLabel6 = AutorizationForm:addLabel(11, 8, "|____/   \\___/  |_.__/   \\___| |_|     ")
-local nameLabel7 = AutorizationForm:addLabel(11, 9, "  _____   _                            ")
-local nameLabel8 = AutorizationForm:addLabel(11, 10," / ____| | |                           ")
-local nameLabel9 = AutorizationForm:addLabel(11, 11,"| (___   | |__     ___    _ __         ")
-local nameLabel10 = AutorizationForm:addLabel(11, 12," \\___ \\  | '_ \\   / _ \\  | '_ \\       ")
-local nameLabel11 = AutorizationForm:addLabel(11, 13," ____) | | | | | | (_) | | |_) |      ")
-local nameLabel12 = AutorizationForm:addLabel(11, 14,"|_____/  |_| |_|  \\___/  | .__/       ")
-local nameLabel13 = AutorizationForm:addLabel(11, 15,"                         | |          ")
-local nameLabel14 = AutorizationForm:addLabel(11, 16,"                         |_|          ")
-local nameLabel15 = AutorizationForm:addLabel(11, 17,"                      ")
-local nameLabel15 = AutorizationForm:addLabel(11, 18,"            Встаньте на PIM          ")
+    local nameLabel1 = AutorizationForm:addLabel(11, 3, " ____            _                     ")
+    local nameLabel2 = AutorizationForm:addLabel(11, 4, "|  _ \\          | |                    ")
+    local nameLabel3 = AutorizationForm:addLabel(11, 5, "| |_) |   ___   | |__     ___   _ __   ")
+    local nameLabel4 = AutorizationForm:addLabel(11, 6, "|  _ <   / _ \\  | '_ \\   / _ \\ | '__|  ")
+    local nameLabel5 = AutorizationForm:addLabel(11, 7, "| |_) | | (_) | | |_) | |  __/ | |     ")
+    local nameLabel6 = AutorizationForm:addLabel(11, 8, "|____/   \\___/  |_.__/   \\___| |_|     ")
+    local nameLabel7 = AutorizationForm:addLabel(11, 9, "  _____   _                            ")
+    local nameLabel8 = AutorizationForm:addLabel(11, 10," / ____| | |                           ")
+    local nameLabel9 = AutorizationForm:addLabel(11, 11,"| (___   | |__     ___    _ __         ")
+    local nameLabel10 = AutorizationForm:addLabel(11, 12," \\___ \\  | '_ \\   / _ \\  | '_ \\       ")
+    local nameLabel11 = AutorizationForm:addLabel(11, 13," ____) | | | | | | (_) | | |_) |      ")
+    local nameLabel12 = AutorizationForm:addLabel(11, 14,"|_____/  |_| |_|  \\___/  | .__/       ")
+    local nameLabel13 = AutorizationForm:addLabel(11, 15,"                         | |          ")
+    local nameLabel14 = AutorizationForm:addLabel(11, 16,"                         |_|          ")
+    local nameLabel15 = AutorizationForm:addLabel(11, 17,"                      ")
+    local nameLabel15 = AutorizationForm:addLabel(11, 18,"            Встаньте на PIM          ")
     authorLabel.fontColor = 0x00FDFF
 
     return AutorizationForm
 end
-
 
 function createListForm(name, label, items, buttons, filter)
     local ShopForm = forms.addForm()
@@ -105,8 +102,7 @@ function createListForm(name, label, items, buttons, filter)
 
     local shopNameLabel = ShopForm:addLabel(35, 4, name)
     local shopCountLabel = ShopForm:addLabel(4, 6, label)
-    local itemList = ShopForm:addList(5, 7, function()
-    end)
+    local itemList = ShopForm:addList(5, 7, function() end)
 
     for i = 1, #items do
         if (not filter or (unicode.lower(items[i].displayName):find(unicode.lower(filter)))) then
@@ -120,7 +116,6 @@ function createListForm(name, label, items, buttons, filter)
 
     local searchEdit = ShopForm:addEdit(3, 2)
     searchEdit.W = 15
-
 
     local searchButton = ShopForm:addButton(19, 3, " Поиск ", function()
         createListForm(name, label, items, buttons, searchEdit.text):setActive()
@@ -139,12 +134,12 @@ function createListForm(name, label, items, buttons, filter)
 end
 
 function createButton(buttonName, W, H, callback)
-    local button = {}
-    button.name = buttonName
-    button.W = W
-    button.H = H
-    button.callback = callback
-    return button
+    return {
+        name = buttonName,
+        W = W,
+        H = H,
+        callback = callback
+    }
 end
 
 function createGarbageForm()
@@ -155,7 +150,6 @@ function createGarbageForm()
             name = name .. ' '
         end
         name = name .. items[i].count .. " шт"
-
         items[i].displayName = name
     end
 
@@ -177,7 +171,6 @@ function createGarbageForm()
                 if (selectedItem) then
                     local NumberForm = createNumberEditForm(function(count)
                         local count, message = shopService:withdrawItem(nickname, selectedItem.id, selectedItem.dmg, count)
-
                         createNotification(count, message, nil, function()
                             createGarbageForm()
                         end)
@@ -205,8 +198,9 @@ function createMainForm(nick)
     MainForm:addLabel(5, 4, "Ваш ник: ")
     MainForm:addLabel(17, 4, nick)
 
+    local balance = shopService:getBalance(nick)
     MainForm:addLabel(5, 6, "Баланс: ")
-    MainForm:addLabel(17, 6, shopService:getBalance(nick))
+    MainForm:addLabel(17, 6, string.format("%.2f", balance))
 
     local sellButton = MainForm:addButton(60, 5, " Выход ", function()
         AutorizationForm:setActive()
@@ -244,61 +238,40 @@ function createMainForm(nick)
         end)
     end, MainForm, "Снять")
 
-   -- local depositButton = MainForm:addButton(36, 4, "Пополнить ", function()
-   --     itemCounterNumberSelectDepositBalanceForm:setActive()
-   -- end)
-   -- depositButton.W = 20
+    local screenWidth = 80
+    local buttonWidth = 34
+    local gap = 4
 
-  --  local withdrawButton = MainForm:addButton(36, 6, "Снять с баланса ", function()
-   --     itemCounterNumberSelectWithdrawBalanceForm:setActive()
-   -- end)
-   -- withdrawButton.W = 20
+    local buyButtonX = (screenWidth - (2 * buttonWidth + gap)) // 2
+    local depositButtonX = buyButtonX + buttonWidth + gap
 
-   -- MainForm:addLabel(5, 8, "Количество предметов: ")
-  --  MainForm:addLabel(27, 8, shopService:getItemCount(nick))
+    local buyButton = MainForm:addButton(buyButtonX, 17, " Купить ", function()
+        createSellShopForm()
+    end)
+    buyButton.H = 3
+    buyButton.W = buttonWidth
+    buyButton.color = 0x006600
+    buyButton.fontColor = 0xFFFFFF
 
-   -- local withdrawButton = MainForm:addButton(36, 8, "Забрать предметы", function()
-   --     createGarbageForm()
-  --  end)
-  --  withdrawButton.W = 20
+    local depositButton = MainForm:addButton(depositButtonX, 17, " Пополнить баланс ", function()
+        createBuyShopForm()
+    end)
+    depositButton.H = 3
+    depositButton.W = buttonWidth
+    depositButton.color = 0xFFA500
+    depositButton.fontColor = 0xFFFFFF
 
-local screenWidth = 80  -- Предполагаемая ширина экрана (может потребоваться подстройка)
-local buttonWidth = 34  -- Ширина каждой из двух верхних кнопок
-local gap = 4           -- Расстояние между кнопками
-
--- Рассчитываем позиции для кнопок "Купить" и "Пополнить баланс"
-local buyButtonX = (screenWidth - (2 * buttonWidth + gap)) // 2
-local depositButtonX = buyButtonX + buttonWidth + gap
-
-local buyButton = MainForm:addButton(buyButtonX, 17, " Купить ", function()
-    createSellShopForm()
-end)
-buyButton.H = 3
-buyButton.W = buttonWidth
-buyButton.color = 0x006600      -- Зеленый фон
-buyButton.fontColor = 0xFFFFFF  -- Белый текст
-
-local depositButton = MainForm:addButton(depositButtonX, 17, " Пополнить баланс ", function()
-    createBuyShopForm()
-end)
-depositButton.H = 3
-depositButton.W = buttonWidth
-depositButton.color = 0xFFA500  -- Желтый фон
-depositButton.fontColor = 0xFFFFFF -- Черный текст
-
--- Кнопка с условиями (центрированная, занимает почти всю ширину)
-local rulesButtonX = (screenWidth - 70) // 2  -- Центрирование
-local rulesButton = MainForm:addButton(rulesButtonX, 21, " Используя магазин вы соглашаетесь с условиями ", function()
-    RulesForm:setActive()
-end)
-rulesButton.H = 3
-rulesButton.W = 70
-rulesButton.color = 0x333333  -- Желтый фон
-rulesButton.fontColor = 0xFF8F00 -- Черный текст
+    local rulesButtonX = (screenWidth - 70) // 2
+    local rulesButton = MainForm:addButton(rulesButtonX, 21, " Используя магазин вы соглашаетесь с условиями ", function()
+        RulesForm:setActive()
+    end)
+    rulesButton.H = 3
+    rulesButton.W = 70
+    rulesButton.color = 0x333333
+    rulesButton.fontColor = 0xFF8F00
 
     return MainForm
 end
-
 
 function createSellShopForm()
     SellShopForm = forms.addForm()
@@ -368,7 +341,6 @@ function createSellShopForm()
     SellShopForm:setActive()
 end
 
-
 function createSellShopSpecificForm(category)
     local items = shopService:getSellShopList(category)
     for i = 1, #items do
@@ -376,14 +348,13 @@ function createSellShopSpecificForm(category)
         for i = 1, 51 - unicode.len(name) do
             name = name .. ' '
         end
-        name = name .. items[i].count
+        name = name .. (items[i].count or 0)
 
         for i = 1, 62 - unicode.len(name) do
             name = name .. ' '
         end
 
-        name = name .. items[i].price
-
+        name = name .. (items[i].price or 0)
         items[i].displayName = name
     end
 
@@ -395,13 +366,13 @@ function createSellShopSpecificForm(category)
                 createSellShopForm()
             end),
             createButton(" Купить ", 68, 23, function(selectedItem)
-                local itemCounterNumberSelectForm = createNumberEditForm(function(count)
-                    local _, message = shopService:sellItem(nickname, selectedItem, count)
-                    createNotification(nil, message, nil, function()
-                        createSellShopSpecificForm(category)
-                    end)
-                end, SellShopForm, "Купить")
-                if (selectedItem) then
+                if selectedItem then
+                    local itemCounterNumberSelectForm = createNumberEditForm(function(count)
+                        local _, message = shopService:sellItem(nickname, selectedItem, count)
+                        createNotification(nil, message, nil, function()
+                            createSellShopSpecificForm(category)
+                        end)
+                    end, SellShopForm, "Купить")
                     itemCounterNumberSelectForm:setActive()
                 end
             end)
@@ -417,14 +388,13 @@ function createBuyShopForm()
         for i = 1, 51 - unicode.len(name) do
             name = name .. ' '
         end
-        name = name .. items[i].count
+        name = name .. (items[i].count or 0)
 
         for i = 1, 62 - unicode.len(name) do
             name = name .. ' '
         end
 
-        name = name .. items[i].price
-
+        name = name .. (items[i].price or 0)
         items[i].displayName = name
     end
 
@@ -444,7 +414,6 @@ function createBuyShopForm()
                             createBuyShopForm()
                         end)
                     end, MainForm, "Продать")
-
                     itemCounterNumberSelectForm:setActive()
                 end
             end),
@@ -454,7 +423,7 @@ function createBuyShopForm()
                 local failedItems = 0
                 
                 for _, item in ipairs(items) do
-                    if item.count > 0 then
+                    if item.count and item.count > 0 then
                         local success, message = shopService:buyItem(nickname, item, item.count)
                         if success then
                             totalEarned = totalEarned + (item.price * item.count)
@@ -487,7 +456,6 @@ function createOreExchangerForm()
             name = name .. ' '
         end
         name = name .. items[i].fromCount .. 'к' .. items[i].toCount
-
         items[i].displayName = name
     end
 
@@ -573,8 +541,7 @@ function createRulesForm()
 
     local shopNameLabel = ShopForm:addLabel(35, 4, " Условия ")
 
-    local ruleList = ShopForm:addList(5, 6, function()
-    end)
+    local ruleList = ShopForm:addList(5, 6, function() end)
 
     ruleList:insert("1. Товар обмену и возврату не подлежит ")
     ruleList:insert("2. При сбоях работы сервера возврат средств")
@@ -607,7 +574,6 @@ end
 AutorizationForm = createAutorizationForm()
 RulesForm = createRulesForm()
 
-
 local Event1 = AutorizationForm:addEvent("player_on", function(e, p)
     gpu.setResolution(80, 25)
     if (p) then
@@ -626,6 +592,4 @@ local Event1 = AutorizationForm:addEvent("player_off", function(e, p)
     AutorizationForm:setActive()
 end)
 
-forms.run(AutorizationForm) --запускаем gui
-
-
+forms.run(AutorizationForm)

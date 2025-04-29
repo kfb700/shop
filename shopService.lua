@@ -21,23 +21,31 @@ local HTTP_API_CONFIG = {
     }
 }
 
--- Улучшенная версия функции sendHttpRequest
+-- Функция отправки HTTP запроса
 local function sendHttpRequest(url, data)
-    local authString = "Basic " .. (HTTP_API_CONFIG.credentials.username .. ":" .. HTTP_API_CONFIG.credentials.password):toBase64()
-    local request = http.request(url, json.encode(data), {
+    local headers = {
         ["Content-Type"] = "application/json",
-        ["Authorization"] = authString
-    })
+        ["Authorization"] = "Basic " .. (HTTP_API_CONFIG.credentials.username .. ":" .. HTTP_API_CONFIG.credentials.password):gsub(".", function(c)
+            return string.format("%%%02X", string.byte(c))
+        end)
+    }
+    
+    local request, reason = http.request(url, json.encode(data), headers)
+    if not request then
+        return {success = false, error = "HTTP request failed: " .. (reason or "unknown reason")}
+    end
     
     local result = ""
     for chunk in request do
         result = result .. chunk
     end
     
-    local response = json.decode(result) or {}
+    local success, response = pcall(json.decode, result)
+    if not success then
+        return {success = false, error = "JSON decode failed: " .. response}
+    end
     
     if not response.success then
-        print("[HTTP ERROR] " .. tostring(response.error or "Unknown error"))
         return {success = false, error = response.error or "Unknown error"}
     end
     
@@ -63,8 +71,7 @@ local function getPlayerData(nick)
         sendHttpRequest(url, {
             action = "create",
             player_id = nick,
-            balance = 0,
-            items = {}
+            balance = 0
         })
         return {_id = nick, balance = 0, items = {}}
     end
@@ -82,14 +89,15 @@ local function updatePlayerData(nick, data)
 end
 
 -- Функция для работы с предметами
-local function updatePlayerItem(nick, itemId, itemDmg, delta, action)
+local function updatePlayerItem(nick, itemId, itemDmg, delta, itemName)
     local url = HTTP_API_CONFIG.baseUrl .. HTTP_API_CONFIG.endpoints.item
     local response = sendHttpRequest(url, {
-        action = action or "update",
+        action = "update",
         player_id = nick,
         item_id = itemId,
         item_dmg = itemDmg,
-        delta = delta
+        delta = delta,
+        item_name = itemName or itemId
     })
     return response and response.success or false
 end
@@ -121,20 +129,24 @@ event.shouldInterrupt = function()
     return false
 end
 
-local function printD(...) end
+local function printD(...) 
+    -- print(...) -- Раскомментируйте для отладки
+end
 
 local function readObjectFromFile(path)
     local file, err = io.open(path, "r")
     if not file then
-        return nil, "Failed to open file: " .. (err or "unknown error")
+        print("Failed to open file: " .. path .. " error: " .. (err or "unknown"))
+        return nil
     end
   
     local content = file:read("*a")
     file:close()
   
-    local obj = serialization.unserialize(content)
-    if not obj then
-        return nil, "Failed to unserialize content from file"
+    local success, obj = pcall(serialization.unserialize, content)
+    if not success then
+        print("Failed to unserialize content from file: " .. path)
+        return nil
     end
   
     return obj
@@ -224,7 +236,7 @@ function ShopService:new(terminalName)
                 return 0, "Ошибка сервера при обновлении баланса"
             end
         end
-        return 0, "Нету монеток в инвентаре!"
+        return 0, "Нет монет в инвентаре!"
     end
 
     function obj:withdrawMoney(nick, count)
@@ -238,13 +250,13 @@ function ShopService:new(terminalName)
             if updatePlayerData(nick, playerData) then
                 logTransaction(nick, "withdraw", nil, countOfMoney)
                 printD(self.terminalName .. ": Игрок " .. nick .. " снял с баланса " .. countOfMoney .. ". Текущий баланс " .. playerData.balance)
-                return countOfMoney, "C баланса списанно " .. countOfMoney
+                return countOfMoney, "С баланса списано " .. countOfMoney
             else
                 return 0, "Ошибка сервера при обновлении баланса"
             end
         end
         if (itemUtils.countOfAvailableSlots() > 0) then
-            return 0, "Нету монеток в магазине!"
+            return 0, "Нет монет в магазине!"
         else
             return 0, "Освободите инвентарь!"
         end
@@ -254,20 +266,20 @@ function ShopService:new(terminalName)
         local playerData = getPlayerData(nick)
         for i, item in ipairs(playerData.items) do
             if (item.id == id and item.dmg == dmg) then
-                local countToWithdraw = math.min(count, item.count)
+                local countToWithdraw = math.min(count, item.quantity or item.count)
                 local withdrawedCount = itemUtils.giveItem(id, dmg, countToWithdraw)
                 if withdrawedCount > 0 then
-                    if updatePlayerItem(nick, id, dmg, -withdrawedCount, "withdraw") then
+                    if updatePlayerItem(nick, id, dmg, -withdrawedCount, item.item_name) then
                         printD(self.terminalName .. ": Игрок " .. nick .. " забрал " .. id .. ":" .. dmg .. " в количестве " .. withdrawedCount)
                         logTransaction(nick, "withdraw_item", {id=id, dmg=dmg, count=withdrawedCount})
-                        return withdrawedCount, "Выданно " .. withdrawedCount .. " вещей"
+                        return withdrawedCount, "Выдано " .. withdrawedCount .. " предметов"
                     else
                         return 0, "Ошибка сервера при обновлении предметов"
                     end
                 end
             end
         end
-        return 0, "Вещей нету в наличии!"
+        return 0, "Предметов нет в наличии!"
     end
 
     function obj:sellItem(nick, itemCfg, count)
@@ -296,9 +308,9 @@ function ShopService:new(terminalName)
     end
 
     function obj:buyItem(nick, itemCfg, count)
-        print("[DEBUG] Попытка продажи:", nick, itemCfg.id, count)
+        printD("[DEBUG] Попытка продажи:", nick, itemCfg.id, count)
         local itemsCount = itemUtils.takeItem(itemCfg.id, itemCfg.dmg, count)
-        print("[DEBUG] Предметов принято:", itemsCount)
+        printD("[DEBUG] Предметов принято:", itemsCount)
         if itemsCount > 0 then
             local playerData = getPlayerData(nick)
             local oldBalance = playerData.balance
@@ -311,10 +323,10 @@ function ShopService:new(terminalName)
                     count = itemsCount,
                     price = itemCfg.price
                 })
-                print("[DEBUG] Баланс изменён:", oldBalance, "->", playerData.balance)
+                printD("[DEBUG] Баланс изменён:", oldBalance, "->", playerData.balance)
                 return itemsCount, "Продано "..itemsCount.." предметов"
             else
-                print("[ERROR] Не удалось сохранить баланс!")
+                printD("[ERROR] Не удалось сохранить баланс!")
                 return 0, "Ошибка сервера"
             end
         end
@@ -326,10 +338,10 @@ function ShopService:new(terminalName)
         local sum = 0
         
         for _, item in ipairs(playerData.items) do
-            local withdrawedCount = itemUtils.giveItem(item.id, item.dmg, item.count)
+            local withdrawedCount = itemUtils.giveItem(item.id, item.dmg, item.quantity or item.count)
             if withdrawedCount > 0 then
                 sum = sum + withdrawedCount
-                if updatePlayerItem(nick, item.id, item.dmg, -withdrawedCount, "withdraw_all") then
+                if updatePlayerItem(nick, item.id, item.dmg, -withdrawedCount, item.item_name) then
                     printD(self.terminalName .. ": Игрок " .. nick .. " забрал " .. item.id .. ":" .. item.dmg .. " в количестве " .. withdrawedCount)
                 end
             end
@@ -337,10 +349,10 @@ function ShopService:new(terminalName)
         
         if sum > 0 then
             logTransaction(nick, "withdraw_all", {count=sum})
-            return sum, "Выданно " .. sum .. " вещей"
+            return sum, "Выдано " .. sum .. " предметов"
         else
             if (itemUtils.countOfAvailableSlots() > 0) then
-                return sum, "Вещей нету в наличии!"
+                return sum, "Предметов нет в наличии!"
             else
                 return sum, "Освободите инвентарь!"
             end
@@ -368,8 +380,8 @@ function ShopService:new(terminalName)
             
             if itemCfg then
                 local exchangeCount = item.count * itemCfg.toCount / itemCfg.fromCount
-                if updatePlayerItem(nick, itemCfg.fromId, itemCfg.fromDmg, -item.count, "exchange_out") and
-                   updatePlayerItem(nick, itemCfg.toId, itemCfg.toDmg, exchangeCount, "exchange_in") then
+                if updatePlayerItem(nick, itemCfg.fromId, itemCfg.fromDmg, -item.count, itemCfg.fromLabel) and
+                   updatePlayerItem(nick, itemCfg.toId, itemCfg.toDmg, exchangeCount, itemCfg.toLabel) then
                     printD(self.terminalName .. ": Игрок " .. nick .. " обменял на слитки " .. 
                            itemCfg.fromId .. ":" .. itemCfg.fromDmg .. " в количестве " .. 
                            item.count .. " по курсу " .. itemCfg.fromCount .. "к" .. itemCfg.toCount)
@@ -386,7 +398,7 @@ function ShopService:new(terminalName)
         end
         
         if sum == 0 then
-            return 0, "Нету руд в инвентаре!"
+            return 0, "Нет руд в инвентаре!"
         else
             return sum, "Обменяно " .. sum .. " руд на слитки.", "Заберите из корзины"
         end
@@ -396,8 +408,8 @@ function ShopService:new(terminalName)
         local countOfItems = itemUtils.takeItem(itemConfig.fromId, itemConfig.fromDmg, count)
         if countOfItems > 0 then
             local exchangeCount = countOfItems * itemConfig.toCount / itemConfig.fromCount
-            if updatePlayerItem(nick, itemConfig.fromId, itemConfig.fromDmg, -countOfItems, "exchange_out") and
-               updatePlayerItem(nick, itemConfig.toId, itemConfig.toDmg, exchangeCount, "exchange_in") then
+            if updatePlayerItem(nick, itemConfig.fromId, itemConfig.fromDmg, -countOfItems, itemConfig.fromLabel) and
+               updatePlayerItem(nick, itemConfig.toId, itemConfig.toDmg, exchangeCount, itemConfig.toLabel) then
                 printD(self.terminalName .. ": Игрок " .. nick .. " обменял " .. 
                        itemConfig.fromId .. ":" .. itemConfig.fromDmg .. " в количестве " .. 
                        countOfItems .. " по курсу " .. itemConfig.fromCount .. "к" .. itemConfig.toCount)
@@ -412,7 +424,7 @@ function ShopService:new(terminalName)
                 return countOfItems, "Обменяно " .. countOfItems .. " руд на слитки.", "Заберите из корзины"
             end
         end
-        return 0, "Нету руд в инвентаре!"
+        return 0, "Нет руд в инвентаре!"
     end
 
     function obj:exchange(nick, itemConfig, count)
@@ -425,11 +437,11 @@ function ShopService:new(terminalName)
             local success = true
             
             if left > 0 then
-                success = success and updatePlayerItem(nick, itemConfig.fromId, itemConfig.fromDmg, left, "exchange_left")
+                success = success and updatePlayerItem(nick, itemConfig.fromId, itemConfig.fromDmg, left, itemConfig.fromLabel)
             end
             
-            success = success and updatePlayerItem(nick, itemConfig.fromId, itemConfig.fromDmg, -countOfItems, "exchange_out")
-            success = success and updatePlayerItem(nick, itemConfig.toId, itemConfig.toDmg, exchangeCount, "exchange_in")
+            success = success and updatePlayerItem(nick, itemConfig.fromId, itemConfig.fromDmg, -countOfItems, itemConfig.fromLabel)
+            success = success and updatePlayerItem(nick, itemConfig.toId, itemConfig.toDmg, exchangeCount, itemConfig.toLabel)
             
             if success then
                 printD(self.terminalName .. ": Игрок " .. nick .. " обменял " .. 
@@ -448,7 +460,7 @@ function ShopService:new(terminalName)
                 return countOfItems, "Обменяно " .. countOfItems .. " предметов.", "Заберите из корзины"
             end
         end
-        return 0, "Нету вещей в инвентаре!"
+        return 0, "Нет предметов в инвентаре!"
     end
 
     obj:init()

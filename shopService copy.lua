@@ -5,7 +5,7 @@ local internet = require('internet')
 local serialization = require("serialization")
 local fs = require('filesystem')
 
--- Модуль Database (остается без изменений)
+-- Сначала определяем модуль Database локально
 local Database = {}
 Database.__index = Database
 
@@ -86,58 +86,31 @@ ShopService = {}
 
 -- Конфигурация Discord Webhook
 local DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1366871469526745148/oW2yVyCNevcBHrXAmvKM1506GIWWFKkQ3oqwa2nNjd_KNDTbDR_c6_6le9TBewpjnTqy"
+local DISCORD_HEADERS = {
+    ["Content-Type"] = "application/json",
+    ["User-Agent"] = "OC-Minecraft-Shop/1.0"
+}
+
+event.shouldInterrupt = function()
+    return false
+end
 
 local function sendToDiscord(message)
-    -- Добавляем проверку интернет-соединения
-    if not component.isAvailable("internet") then
-        print("Internet card not available")
-        return false
-    end
-
-    local jsonData = {
-        content = message,
-        username = "Minecraft Shop",
-        avatar_url = "https://www.minecraft.net/content/dam/minecraft/touchup-2020/minecraft-logo.svg"
-    }
-
-    local serialized = serialization.serialize(jsonData)
-    local headers = {
-        ["Content-Type"] = "application/json",
-        ["User-Agent"] = "OC-Minecraft-Shop"
-    }
-
-    local success, response = pcall(function()
-        local request = internet.request(DISCORD_WEBHOOK_URL, serialized, headers, "POST")
-        -- Добавляем таймаут и обработку ответа
-        for i = 1, 10 do -- 10 попыток
-            local result = request.finishConnect()
-            if result then 
-                return true
-            end
-            os.sleep(0.5) -- Пауза между попытками
-        end
-        return false
+    local success, err = pcall(function()
+        local jsonMessage = serialization.serialize({content = message})
+        local request = internet.request(DISCORD_WEBHOOK_URL, jsonMessage, DISCORD_HEADERS, "POST")
+        local response = request.finishConnect()
+        return response ~= nil
     end)
-
+    
     if not success then
-        print("Discord send error:", response)
-        return false
+        print("[DISCORD ERROR] " .. tostring(err))
     end
-    return true
 end
 
 local function printD(message)
-    print(message) -- Всегда выводим в консоль
-    
-    -- Пытаемся отправить в Discord с 3 попытками
-    for attempt = 1, 3 do
-        if sendToDiscord(message) then
-            break
-        else
-            print("Attempt", attempt, "failed. Retrying...")
-            os.sleep(1)
-        end
-    end
+    print(message)
+    sendToDiscord(message)
 end
 
 local function readObjectFromFile(path)

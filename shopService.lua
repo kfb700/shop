@@ -1,20 +1,41 @@
 local component = require('component')
 local itemUtils = require('ItemUtils')
 local event = require('event')
-local Database = dofile('/home/Database.lua')
+local internet = require('internet')
 local serialization = require("serialization")
 
 ShopService = {}
 
-local telegramLog_buy = require('TelegramLog'):new({telegramToken = "", message_thread_id = 00, chatId = 000})
-local telegramLog_sell = require('TelegramLog'):new({telegramToken = "", message_thread_id = 00, chatId = 000})
-local telegramLog_OreExchange = require('TelegramLog'):new({telegramToken = "", message_thread_id = 00, chatId = 000})
+-- Конфигурация Discord Webhook
+local DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1366871469526745148/oW2yVyCNevcBHrXAmvKM1506GIWWFKkQ3oqwa2nNjd_KNDTbDR_c6_6le9TBewpjnTqy"
+local DISCORD_HEADERS = {
+    ["Content-Type"] = "application/json",
+    ["User-Agent"] = "OC-Minecraft-Shop/1.0"
+}
 
 event.shouldInterrupt = function()
     return false
 end
 
-local function printD(...) end
+-- Функция для отправки сообщений в Discord
+local function sendToDiscord(message)
+    local success, err = pcall(function()
+        local jsonMessage = serialization.serialize({content = message})
+        local request = internet.request(DISCORD_WEBHOOK_URL, jsonMessage, DISCORD_HEADERS, "POST")
+        local response = request.finishConnect()
+        return response ~= nil
+    end)
+    
+    if not success then
+        print("[DISCORD ERROR] " .. tostring(err))
+    end
+end
+
+local function printD(message)
+    -- Логирование в консоль и Discord
+    print(message)
+    sendToDiscord(message)
+end
 
 local function readObjectFromFile(path)
     local file, err = io.open(path, "r")
@@ -37,37 +58,26 @@ function ShopService:new(terminalName)
     local obj = {}
     
     function obj:init()
-        self.telegramLoggers = {
-            telegramLog_buy = telegramLog_buy, 
-            telegramLog_sell = telegramLog_sell, 
-            telegramLog_OreExchange = telegramLog_OreExchange 
-        }
+        self.terminalName = terminalName or "Unknown Terminal"
+        
+        self.oreExchangeList = readObjectFromFile("/home/config/oreExchanger.cfg") or {}
+        self.exchangeList = readObjectFromFile("/home/config/exchanger.cfg") or {}
+        self.sellShopList = readObjectFromFile("/home/config/sellShop.cfg") or {}
+        self.buyShopList = readObjectFromFile("/home/config/buyShop.cfg") or {}
 
-        self.oreExchangeList = readObjectFromFile("/home/config/oreExchanger.cfg")
-        self.exchangeList = readObjectFromFile("/home/config/exchanger.cfg")
-        self.sellShopList = readObjectFromFile("/home/config/sellShop.cfg")
-        self.buyShopList = readObjectFromFile("/home/config/buyShop.cfg")
-
-        self.db = Database:new("USERS")
-        self.currencies = {}
-        self.currencies[1] = {
-            item = {name = "minecraft:gold_nugget", damage = 0},
-            money = 1000
-        }
-        self.currencies[2] = {
-            item = {name = "minecraft:gold_ingot", damage = 0},
-            money = 10000
-        }
-        self.currencies[3] = {
-            item = {name = "minecraft:diamond", damage = 0},
-            money = 100000
-        }
-        self.currencies[4] = {
-            item = {name = "minecraft:emerald", damage = 0},
-            money = 1000000
+        self.currencies = {
+            {item = {name = "minecraft:gold_nugget", damage = 0}, money = 1000},
+            {item = {name = "minecraft:gold_ingot", damage = 0}, money = 10000},
+            {item = {name = "minecraft:diamond", damage = 0}, money = 100000},
+            {item = {name = "minecraft:emerald", damage = 0}, money = 1000000}
         }
 
         itemUtils.setCurrency(self.currencies)
+        
+        -- Инициализация базы данных
+        self.db = Database:new("USERS")
+        
+        printD("🔄 " .. self.terminalName .. " инициализирован")
     end
 
     function obj:dbClause(fieldName, fieldValue, typeOfClause)
@@ -133,10 +143,10 @@ function ShopService:new(terminalName)
             local playerData = self:getPlayerData(nick)
             playerData.balance = playerData.balance + countOfMoney
             self.db:insert(nick, playerData)
-            printD(terminalName .. ": Игрок " .. nick .. " пополнил баланс на " .. countOfMoney .. " Текущий баланс " .. playerData.balance)
+            printD("💰 " .. nick .. " пополнил баланс на " .. countOfMoney .. " в " .. self.terminalName .. ". Баланс: " .. playerData.balance)
             return playerData.balance, "Баланс пополнен на " .. countOfMoney
         end
-        return 0, "Нету монеток в инвентаре!"
+        return 0, "Нет монет в инвентаре!"
     end
 
     function obj:withdrawMoney(nick, count)
@@ -148,30 +158,29 @@ function ShopService:new(terminalName)
         if (countOfMoney > 0) then
             playerData.balance = playerData.balance - countOfMoney
             self.db:insert(nick, playerData)
-            printD(terminalName .. ": Игрок " .. nick .. " снял с баланса " .. countOfMoney .. ". Текущий баланс " .. playerData.balance)
-            return countOfMoney, "C баланса списанно " .. countOfMoney
+            printD("💸 " .. nick .. " снял " .. countOfMoney .. " в " .. self.terminalName .. ". Баланс: " .. playerData.balance)
+            return countOfMoney, "С баланса списано " .. countOfMoney
         end
         if (itemUtils.countOfAvailableSlots() > 0) then
-            return 0, "Нету монеток в магазине!"
+            return 0, "Нет монет в магазине!"
         else
             return 0, "Освободите инвентарь!"
         end
     end
 
     function obj:getPlayerData(nick)
-        print("[DEBUG] Загрузка данных для", nick)
         local playerDataList = self.db:select({self:dbClause("_id", nick, "=")})
         
         if not playerDataList or not playerDataList[1] then
-            print("[DEBUG] Создание нового игрока", nick)
             local newPlayer = {_id = nick, balance = 0, items = {}}
             if not self.db:insert(nick, newPlayer) then
-                print("[ERROR] Не удалось создать запись для нового игрока")
+                printD("⚠️ Ошибка создания игрока " .. nick .. " в " .. self.terminalName)
+            else
+                printD("🆕 Новый игрок " .. nick .. " зарегистрирован в " .. self.terminalName)
             end
             return newPlayer
         end
         
-        print("[DEBUG] Найден баланс:", playerDataList[1].balance)
         return playerDataList[1]
     end
 
@@ -188,12 +197,12 @@ function ShopService:new(terminalName)
                 end
                 self.db:update(nick, playerData)
                 if (withdrawedCount > 0) then
-                    printD(terminalName .. ": Игрок " .. nick .. " забрал " .. id .. ":" .. dmg .. " в количестве " .. withdrawedCount)
+                    printD("📤 " .. nick .. " забрал " .. id .. ":" .. dmg .. " (x" .. withdrawedCount .. ") из " .. self.terminalName)
                 end
-                return withdrawedCount, "Выданно " .. withdrawedCount .. " вещей"
+                return withdrawedCount, "Выдано " .. withdrawedCount .. " предметов"
             end
         end
-        return 0, "Вещей нету в наличии!"
+        return 0, "Предметов нет в наличии!"
     end
 
     function obj:sellItem(nick, itemCfg, count)
@@ -205,24 +214,25 @@ function ShopService:new(terminalName)
         if (itemsCount > 0) then
             playerData.balance = playerData.balance - itemsCount * itemCfg.price
             self.db:update(nick, playerData)
-            printD(terminalName .. ": Игрок " .. nick .. " купил " .. itemCfg.id .. ":" .. itemCfg.dmg .. " в количестве " .. itemsCount .. " по цене " .. itemCfg.price .. " за шт. Текущий баланс " .. playerData.balance)
+            local itemName = itemCfg.label or (itemCfg.id .. ":" .. itemCfg.dmg)
+            printD("🛒 " .. nick .. " купил " .. itemName .. " (x" .. itemsCount .. ") по " .. itemCfg.price .. " в " .. self.terminalName .. ". Баланс: " .. playerData.balance)
+            return itemsCount, "Куплено " .. itemsCount .. " предметов!"
         end
-        return itemsCount, "Куплено " .. itemsCount .. " предметов!"
+        return 0, "Ошибка выдачи предмета"
     end
 
     function obj:buyItem(nick, itemCfg, count)
-        print("[DEBUG] Попытка продажи:", nick, itemCfg.id, count)
         local itemsCount = itemUtils.takeItem(itemCfg.id, itemCfg.dmg, count)
-        print("[DEBUG] Предметов принято:", itemsCount)
         if itemsCount > 0 then
             local playerData = self:getPlayerData(nick)
             local oldBalance = playerData.balance
             playerData.balance = oldBalance + (itemsCount * itemCfg.price)
             if not self.db:update(nick, playerData) then
-                print("[ERROR] Не удалось сохранить баланс!")
+                printD("⚠️ Ошибка сохранения баланса для " .. nick .. " в " .. self.terminalName)
                 return 0, "Ошибка сервера"
             end
-            print("[DEBUG] Баланс изменён:", oldBalance, "->", playerData.balance)
+            local itemName = itemCfg.label or (itemCfg.id .. ":" .. itemCfg.dmg)
+            printD("🏪 " .. nick .. " продал " .. itemName .. " (x" .. itemsCount .. ") по " .. itemCfg.price .. " в " .. self.terminalName .. ". Баланс: " .. playerData.balance)
             return itemsCount, "Продано "..itemsCount.." предметов"
         end
         return 0, "Не удалось принять предметы"
@@ -241,7 +251,7 @@ function ShopService:new(terminalName)
                 table.insert(toRemove, i)
             end
             if (withdrawedCount > 0) then
-                printD(terminalName .. ": Игрок " .. nick .. " забрал " .. item.id .. ":" .. item.dmg .. " в количестве " .. withdrawedCount)
+                printD("📦 " .. nick .. " забрал " .. item.id .. ":" .. item.dmg .. " (x" .. withdrawedCount .. ") из " .. self.terminalName)
             end
         end
         for i = #toRemove, 1, -1 do
@@ -250,12 +260,12 @@ function ShopService:new(terminalName)
         self.db:update(nick, playerData)
         if (sum == 0) then
             if (itemUtils.countOfAvailableSlots() > 0) then
-                return sum, "Вещей нету в наличии!"
+                return sum, "Предметов нет в наличии!"
             else
                 return sum, "Освободите инвентарь!"
             end
         end
-        return sum, "Выданно " .. sum .. " вещей"
+        return sum, "Выдано " .. sum .. " предметов"
     end
 
     function obj:exchangeAllOres(nick)
@@ -278,7 +288,7 @@ function ShopService:new(terminalName)
                     break
                 end
             end
-            printD(terminalName .. ": Игрок " .. nick .. " обменял на слитки " .. itemCfg.fromId .. ":" .. itemCfg.fromDmg .. " в количестве " .. item.count .. " по курсу " .. itemCfg.fromCount .. "к" .. itemCfg.toCount)
+            printD("♻️ " .. nick .. " обменял " .. itemCfg.fromId .. ":" .. itemCfg.fromDmg .. " (x" .. item.count .. ") на " .. itemCfg.toId .. ":" .. itemCfg.toDmg .. " в " .. self.terminalName)
             local itemAlreadyInFile = false
             for i = 1, #playerData.items do
                 local itemP = playerData.items[i]
@@ -299,9 +309,9 @@ function ShopService:new(terminalName)
         end
         self.db:update(nick, playerData)
         if (sum == 0) then
-            return 0, "Нету руд в инвентаре!"
+            return 0, "Нет руд в инвентаре!"
         else
-            return sum, " Обменяно " .. sum .. " руд на слитки.", "Заберите из корзины"
+            return sum, "Обменяно " .. sum .. " руд на слитки.", "Заберите из корзины"
         end
     end
 
@@ -327,10 +337,10 @@ function ShopService:new(terminalName)
                 table.insert(playerData.items, item)
             end
             self.db:update(nick, playerData)
-            printD(terminalName .. ": Игрок " .. nick .. " обменял " .. itemConfig.fromId .. ":" .. itemConfig.fromDmg .. " в количестве " .. countOfItems .. " по курсу " .. itemConfig.fromCount .. "к" .. itemConfig.toCount)
-            return countOfItems, " Обменяно " .. countOfItems .. " руд на слитки.", "Заберите из корзины"
+            printD("♻️ " .. nick .. " обменял " .. itemConfig.fromId .. ":" .. itemConfig.fromDmg .. " (x" .. countOfItems .. ") на " .. itemConfig.toId .. ":" .. itemConfig.toDmg .. " в " .. self.terminalName)
+            return countOfItems, "Обменяно " .. countOfItems .. " руд на слитки.", "Заберите из корзины"
         end
-        return 0, "Нету руд в инвентаре!"
+        return 0, "Нет руд в инвентаре!"
     end
 
     function obj:exchange(nick, itemConfig, count)
@@ -379,15 +389,15 @@ function ShopService:new(terminalName)
                 item.count = countOfExchanges * itemConfig.toCount
                 table.insert(playerData.items, item)
             end
-            printD(terminalName .. ": Игрок " .. nick .. " обменял " .. itemConfig.fromId .. ":" .. itemConfig.fromDmg .. " на " .. itemConfig.toId .. ":" .. itemConfig.toDmg .. " в количестве " .. countOfItems .. " по курсу " .. itemConfig.fromCount .. "к" .. itemConfig.toCount)
+            printD("🔄 " .. nick .. " обменял " .. itemConfig.fromId .. ":" .. itemConfig.fromDmg .. " (x" .. countOfItems .. ") на " .. itemConfig.toId .. ":" .. itemConfig.toDmg .. " в " .. self.terminalName)
         end
         if(save) then
             self.db:update(nick, playerData)
             if (countOfExchanges > 0) then
-                return countOfItems, " Обменяно " .. countOfItems .. " предметов.", "Заберите из корзины"
+                return countOfItems, "Обменяно " .. countOfItems .. " предметов.", "Заберите из корзины"
             end
         end
-        return 0, "Нету вещей в инвентаре!"
+        return 0, "Нет предметов в инвентаре!"
     end
 
     obj:init()
@@ -395,3 +405,5 @@ function ShopService:new(terminalName)
     self.__index = self
     return obj
 end
+
+return ShopService

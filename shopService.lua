@@ -3,7 +3,85 @@ local itemUtils = require('ItemUtils')
 local event = require('event')
 local internet = require('internet')
 local serialization = require("serialization")
+local fs = require('filesystem')
 
+-- Сначала определяем модуль Database локально
+local Database = {}
+Database.__index = Database
+
+function Database:new(directory)
+    local obj = setmetatable({}, self)
+    obj.directory = "/home/"..directory
+    
+    if not fs.exists(obj.directory) then
+        fs.makeDirectory(obj.directory)
+    end
+    
+    return obj
+end
+
+function Database:insert(key, value)
+    local path = fs.concat(self.directory, tostring(key))
+    local file = io.open(path, "w")
+    if not file then return false end
+    
+    value._id = key
+    local serialized = serialization.serialize(value)
+    file:write(serialized)
+    file:close()
+    return true
+end
+
+function Database:update(key, value)
+    return self:insert(key, value)
+end
+
+function Database:select(conditions)
+    local results = {}
+    
+    for file in fs.list(self.directory) do
+        local path = fs.concat(self.directory, file)
+        local fh = io.open(path, 'r')
+        if fh then
+            local data = fh:read('*a')
+            fh:close()
+            local ok, record = pcall(serialization.unserialize, data)
+            
+            if ok and record then
+                local match = true
+                for _, condition in ipairs(conditions or {}) do
+                    local field = condition.column
+                    local value = condition.value
+                    local operation = condition.operation or "=="
+                    
+                    if operation == "=" or operation == "==" then
+                        if record[field] ~= value then match = false end
+                    elseif operation == "~=" or operation == "!=" then
+                        if record[field] == value then match = false end
+                    elseif operation == "<" then
+                        if not (record[field] < value) then match = false end
+                    elseif operation == "<=" then
+                        if not (record[field] <= value) then match = false end
+                    elseif operation == ">" then
+                        if not (record[field] > value) then match = false end
+                    elseif operation == ">=" then
+                        if not (record[field] >= value) then match = false end
+                    end
+                    
+                    if not match then break end
+                end
+                
+                if match then
+                    table.insert(results, record)
+                end
+            end
+        end
+    end
+    
+    return results
+end
+
+-- Теперь определяем ShopService
 ShopService = {}
 
 -- Конфигурация Discord Webhook
@@ -17,7 +95,6 @@ event.shouldInterrupt = function()
     return false
 end
 
--- Функция для отправки сообщений в Discord
 local function sendToDiscord(message)
     local success, err = pcall(function()
         local jsonMessage = serialization.serialize({content = message})
@@ -32,7 +109,6 @@ local function sendToDiscord(message)
 end
 
 local function printD(message)
-    -- Логирование в консоль и Discord
     print(message)
     sendToDiscord(message)
 end
@@ -81,11 +157,11 @@ function ShopService:new(terminalName)
     end
 
     function obj:dbClause(fieldName, fieldValue, typeOfClause)
-        local clause = {}
-        clause.column = fieldName
-        clause.value = fieldValue
-        clause.operation = typeOfClause
-        return clause
+        return {
+            column = fieldName,
+            value = fieldValue,
+            operation = typeOfClause or "=="
+        }
     end
 
     function obj:getOreExchangeList()
@@ -99,7 +175,7 @@ function ShopService:new(terminalName)
     function obj:getSellShopList(category)
         local categorySellShopList = {}
         for i, sellConfig in pairs(self.sellShopList) do
-            if (sellConfig.category == category) then
+            if sellConfig.category == category then
                 table.insert(categorySellShopList, sellConfig)
             end
         end
@@ -108,38 +184,28 @@ function ShopService:new(terminalName)
     end
 
     function obj:getBuyShopList()
-        local categoryBuyShopList = self.buyShopList
-        itemUtils.populateUserCount(categoryBuyShopList)
-        return categoryBuyShopList
+        itemUtils.populateUserCount(self.buyShopList)
+        return self.buyShopList
     end
 
     function obj:getBalance(nick)
         local playerData = self:getPlayerData(nick)
-        if (playerData) then
-            return playerData.balance
-        end
-        return 0
+        return playerData and playerData.balance or 0
     end
 
     function obj:getItemCount(nick)
         local playerData = self:getPlayerData(nick)
-        if (playerData) then
-            return #playerData.items
-        end
-        return 0
+        return playerData and #playerData.items or 0
     end
 
     function obj:getItems(nick)
         local playerData = self:getPlayerData(nick)
-        if (playerData) then
-            return playerData.items
-        end
-        return {}
+        return playerData and playerData.items or {}
     end
 
     function obj:depositMoney(nick, count)
         local countOfMoney = itemUtils.takeMoney(count)
-        if (countOfMoney > 0) then
+        if countOfMoney > 0 then
             local playerData = self:getPlayerData(nick)
             playerData.balance = playerData.balance + countOfMoney
             self.db:insert(nick, playerData)
@@ -151,25 +217,23 @@ function ShopService:new(terminalName)
 
     function obj:withdrawMoney(nick, count)
         local playerData = self:getPlayerData(nick)
-        if (playerData.balance < count) then
+        if playerData.balance < count then
             return 0, "Не хватает денег на счету"
         end
+        
         local countOfMoney = itemUtils.giveMoney(count)
-        if (countOfMoney > 0) then
+        if countOfMoney > 0 then
             playerData.balance = playerData.balance - countOfMoney
             self.db:insert(nick, playerData)
             printD("💸 " .. nick .. " снял " .. countOfMoney .. " в " .. self.terminalName .. ". Баланс: " .. playerData.balance)
             return countOfMoney, "С баланса списано " .. countOfMoney
         end
-        if (itemUtils.countOfAvailableSlots() > 0) then
-            return 0, "Нет монет в магазине!"
-        else
-            return 0, "Освободите инвентарь!"
-        end
+        
+        return 0, itemUtils.countOfAvailableSlots() > 0 and "Нет монет в магазине!" or "Освободите инвентарь!"
     end
 
     function obj:getPlayerData(nick)
-        local playerDataList = self.db:select({self:dbClause("_id", nick, "=")})
+        local playerDataList = self.db:select({self:dbClause("_id", nick)})
         
         if not playerDataList or not playerDataList[1] then
             local newPlayer = {_id = nick, balance = 0, items = {}}
@@ -188,15 +252,18 @@ function ShopService:new(terminalName)
         local playerData = self:getPlayerData(nick)
         for i = 1, #playerData.items do
             local item = playerData.items[i]
-            if (item.id == id and item.dmg == dmg) then
+            if item.id == id and item.dmg == dmg then
                 local countToWithdraw = math.min(count, item.count)
                 local withdrawedCount = itemUtils.giveItem(id, dmg, countToWithdraw)
                 item.count = item.count - withdrawedCount
-                if (item.count == 0) then
+                
+                if item.count == 0 then
                     table.remove(playerData.items, i)
                 end
+                
                 self.db:update(nick, playerData)
-                if (withdrawedCount > 0) then
+                
+                if withdrawedCount > 0 then
                     printD("📤 " .. nick .. " забрал " .. id .. ":" .. dmg .. " (x" .. withdrawedCount .. ") из " .. self.terminalName)
                 end
                 return withdrawedCount, "Выдано " .. withdrawedCount .. " предметов"
@@ -207,12 +274,15 @@ function ShopService:new(terminalName)
 
     function obj:sellItem(nick, itemCfg, count)
         local playerData = self:getPlayerData(nick)
-        if (playerData.balance < count * itemCfg.price) then
+        local totalPrice = count * itemCfg.price
+        
+        if playerData.balance < totalPrice then
             return false, "Не хватает денег на счету"
         end
+        
         local itemsCount = itemUtils.giveItem(itemCfg.id, itemCfg.dmg, count, itemCfg.nbt)
-        if (itemsCount > 0) then
-            playerData.balance = playerData.balance - itemsCount * itemCfg.price
+        if itemsCount > 0 then
+            playerData.balance = playerData.balance - (itemsCount * itemCfg.price)
             self.db:update(nick, playerData)
             local itemName = itemCfg.label or (itemCfg.id .. ":" .. itemCfg.dmg)
             printD("🛒 " .. nick .. " купил " .. itemName .. " (x" .. itemsCount .. ") по " .. itemCfg.price .. " в " .. self.terminalName .. ". Баланс: " .. playerData.balance)
@@ -225,12 +295,13 @@ function ShopService:new(terminalName)
         local itemsCount = itemUtils.takeItem(itemCfg.id, itemCfg.dmg, count)
         if itemsCount > 0 then
             local playerData = self:getPlayerData(nick)
-            local oldBalance = playerData.balance
-            playerData.balance = oldBalance + (itemsCount * itemCfg.price)
+            playerData.balance = playerData.balance + (itemsCount * itemCfg.price)
+            
             if not self.db:update(nick, playerData) then
                 printD("⚠️ Ошибка сохранения баланса для " .. nick .. " в " .. self.terminalName)
                 return 0, "Ошибка сервера"
             end
+            
             local itemName = itemCfg.label or (itemCfg.id .. ":" .. itemCfg.dmg)
             printD("🏪 " .. nick .. " продал " .. itemName .. " (x" .. itemsCount .. ") по " .. itemCfg.price .. " в " .. self.terminalName .. ". Баланс: " .. playerData.balance)
             return itemsCount, "Продано "..itemsCount.." предметов"
@@ -242,100 +313,106 @@ function ShopService:new(terminalName)
         local playerData = self:getPlayerData(nick)
         local toRemove = {}
         local sum = 0
+        
         for i = 1, #playerData.items do
             local item = playerData.items[i]
             local withdrawedCount = itemUtils.giveItem(item.id, item.dmg, item.count)
             sum = sum + withdrawedCount
             item.count = item.count - withdrawedCount
-            if (item.count == 0) then
+            
+            if item.count == 0 then
                 table.insert(toRemove, i)
             end
-            if (withdrawedCount > 0) then
+            
+            if withdrawedCount > 0 then
                 printD("📦 " .. nick .. " забрал " .. item.id .. ":" .. item.dmg .. " (x" .. withdrawedCount .. ") из " .. self.terminalName)
             end
         end
+        
         for i = #toRemove, 1, -1 do
             table.remove(playerData.items, toRemove[i])
         end
+        
         self.db:update(nick, playerData)
-        if (sum == 0) then
-            if (itemUtils.countOfAvailableSlots() > 0) then
-                return sum, "Предметов нет в наличии!"
-            else
-                return sum, "Освободите инвентарь!"
-            end
+        
+        if sum == 0 then
+            return sum, itemUtils.countOfAvailableSlots() > 0 and "Предметов нет в наличии!" or "Освободите инвентарь!"
         end
         return sum, "Выдано " .. sum .. " предметов"
     end
 
     function obj:exchangeAllOres(nick)
         local items = {}
-        for i, itemConfig in pairs(self.oreExchangeList) do
-            local item = {}
-            item.id = itemConfig.fromId
-            item.dmg = itemConfig.fromDmg
-            table.insert(items, item)
+        for _, itemConfig in pairs(self.oreExchangeList) do
+            table.insert(items, {id = itemConfig.fromId, dmg = itemConfig.fromDmg})
         end
+        
         local itemsTaken = itemUtils.takeItems(items)
         local playerData = self:getPlayerData(nick)
         local sum = 0
-        for i, item in pairs(itemsTaken) do
+        
+        for _, item in pairs(itemsTaken) do
             sum = sum + item.count
             local itemCfg
-            for j, itemConfig in pairs(self.oreExchangeList) do
-                if (item.id == itemConfig.fromId and item.dmg == itemConfig.fromDmg) then
+            for _, itemConfig in pairs(self.oreExchangeList) do
+                if item.id == itemConfig.fromId and item.dmg == itemConfig.fromDmg then
                     itemCfg = itemConfig
                     break
                 end
             end
+            
             printD("♻️ " .. nick .. " обменял " .. itemCfg.fromId .. ":" .. itemCfg.fromDmg .. " (x" .. item.count .. ") на " .. itemCfg.toId .. ":" .. itemCfg.toDmg .. " в " .. self.terminalName)
-            local itemAlreadyInFile = false
-            for i = 1, #playerData.items do
-                local itemP = playerData.items[i]
-                if (itemP.id == itemCfg.toId and itemP.dmg == itemCfg.toDmg) then
-                    itemP.count = itemP.count + item.count * itemCfg.toCount / itemCfg.fromCount
-                    itemAlreadyInFile = true
+            
+            local found = false
+            for _, storedItem in ipairs(playerData.items) do
+                if storedItem.id == itemCfg.toId and storedItem.dmg == itemCfg.toDmg then
+                    storedItem.count = storedItem.count + (item.count * itemCfg.toCount / itemCfg.fromCount)
+                    found = true
                     break
                 end
             end
-            if (not itemAlreadyInFile) then
-                local newItem = {}
-                newItem.id = itemCfg.toId
-                newItem.dmg = itemCfg.toDmg
-                newItem.label = itemCfg.toLabel
-                newItem.count = item.count * itemCfg.toCount / itemCfg.fromCount
-                table.insert(playerData.items, newItem)
+            
+            if not found then
+                table.insert(playerData.items, {
+                    id = itemCfg.toId,
+                    dmg = itemCfg.toDmg,
+                    label = itemCfg.toLabel,
+                    count = item.count * itemCfg.toCount / itemCfg.fromCount
+                })
             end
         end
+        
         self.db:update(nick, playerData)
-        if (sum == 0) then
+        
+        if sum == 0 then
             return 0, "Нет руд в инвентаре!"
-        else
-            return sum, "Обменяно " .. sum .. " руд на слитки.", "Заберите из корзины"
         end
+        return sum, "Обменяно " .. sum .. " руд на слитки.", "Заберите из корзины"
     end
 
     function obj:exchangeOre(nick, itemConfig, count)
         local countOfItems = itemUtils.takeItem(itemConfig.fromId, itemConfig.fromDmg, count)
-        if (countOfItems > 0) then
+        if countOfItems > 0 then
             local playerData = self:getPlayerData(nick)
-            local itemAlreadyInFile = false
-            for i = 1, #playerData.items do
-                local item = playerData.items[i]
-                if (item.id == itemConfig.toId and item.dmg == itemConfig.toDmg) then
-                    item.count = item.count + countOfItems * itemConfig.toCount / itemConfig.fromCount
-                    itemAlreadyInFile = true
+            local found = false
+            
+            for _, item in ipairs(playerData.items) do
+                if item.id == itemConfig.toId and item.dmg == itemConfig.toDmg then
+                    item.count = item.count + (countOfItems * itemConfig.toCount / itemConfig.fromCount)
+                    found = true
                     break
                 end
             end
-            if (not itemAlreadyInFile) then
-                local item = {}
-                item.id = itemConfig.toId
-                item.dmg = itemConfig.toDmg
-                item.label = itemConfig.toLabel
-                item.count = countOfItems * itemConfig.toCount / itemConfig.fromCount
-                table.insert(playerData.items, item)
+            
+            if not found then
+                table.insert(playerData.items, {
+                    id = itemConfig.toId,
+                    dmg = itemConfig.toDmg,
+                    label = itemConfig.toLabel,
+                    count = countOfItems * itemConfig.toCount / itemConfig.fromCount
+                })
             end
+            
             self.db:update(nick, playerData)
             printD("♻️ " .. nick .. " обменял " .. itemConfig.fromId .. ":" .. itemConfig.fromDmg .. " (x" .. countOfItems .. ") на " .. itemConfig.toId .. ":" .. itemConfig.toDmg .. " в " .. self.terminalName)
             return countOfItems, "Обменяно " .. countOfItems .. " руд на слитки.", "Заберите из корзины"
@@ -347,56 +424,62 @@ function ShopService:new(terminalName)
         local countOfItems = itemUtils.takeItem(itemConfig.fromId, itemConfig.fromDmg, count * itemConfig.fromCount)
         local countOfExchanges = math.floor(countOfItems / itemConfig.fromCount)
         local left = math.floor(countOfItems % itemConfig.fromCount)
-        local save = false
+        local updated = false
         local playerData = self:getPlayerData(nick)
-        if (left > 0) then
-            save = true
-            local itemAlreadyInFile = false
-            for i = 1, #playerData.items do
-                local item = playerData.items[i]
-                if (item.id == itemConfig.fromId and item.dmg == itemConfig.fromDmg) then
+        
+        if left > 0 then
+            updated = true
+            local found = false
+            
+            for _, item in ipairs(playerData.items) do
+                if item.id == itemConfig.fromId and item.dmg == itemConfig.fromDmg then
                     item.count = item.count + left
-                    itemAlreadyInFile = true
+                    found = true
                     break
                 end
             end
-            if (not itemAlreadyInFile) then
-                local item = {}
-                item.id = itemConfig.fromId
-                item.dmg = itemConfig.fromDmg
-                item.label = itemConfig.fromLabel
-                item.count = left
-                table.insert(playerData.items, item)
+            
+            if not found then
+                table.insert(playerData.items, {
+                    id = itemConfig.fromId,
+                    dmg = itemConfig.fromDmg,
+                    label = itemConfig.fromLabel,
+                    count = left
+                })
             end
-            self.db:update(nick, playerData)
         end
-        if (countOfExchanges > 0) then
-            save = true
-            local itemAlreadyInFile = false
-            for i = 1, #playerData.items do
-                local item = playerData.items[i]
-                if (item.id == itemConfig.toId and item.dmg == itemConfig.toDmg) then
-                    item.count = item.count + countOfExchanges * itemConfig.toCount
-                    itemAlreadyInFile = true
+        
+        if countOfExchanges > 0 then
+            updated = true
+            local found = false
+            
+            for _, item in ipairs(playerData.items) do
+                if item.id == itemConfig.toId and item.dmg == itemConfig.toDmg then
+                    item.count = item.count + (countOfExchanges * itemConfig.toCount)
+                    found = true
                     break
                 end
             end
-            if (not itemAlreadyInFile) then
-                local item = {}
-                item.id = itemConfig.toId
-                item.dmg = itemConfig.toDmg
-                item.label = itemConfig.toLabel
-                item.count = countOfExchanges * itemConfig.toCount
-                table.insert(playerData.items, item)
+            
+            if not found then
+                table.insert(playerData.items, {
+                    id = itemConfig.toId,
+                    dmg = itemConfig.toDmg,
+                    label = itemConfig.toLabel,
+                    count = countOfExchanges * itemConfig.toCount
+                })
             end
+            
             printD("🔄 " .. nick .. " обменял " .. itemConfig.fromId .. ":" .. itemConfig.fromDmg .. " (x" .. countOfItems .. ") на " .. itemConfig.toId .. ":" .. itemConfig.toDmg .. " в " .. self.terminalName)
         end
-        if(save) then
+        
+        if updated then
             self.db:update(nick, playerData)
-            if (countOfExchanges > 0) then
+            if countOfExchanges > 0 then
                 return countOfItems, "Обменяно " .. countOfItems .. " предметов.", "Заберите из корзины"
             end
         end
+        
         return 0, "Нет предметов в инвентаре!"
     end
 

@@ -9,31 +9,40 @@ ShopService = {}
 
 -- Конфигурация HTTP API
 local HTTP_API_CONFIG = {
-    baseUrl = "http://yourdomain.com/shop_api",
+    baseUrl = "https://r-2-veteran.online/shop_api",
     endpoints = {
         player = "/player.php",
         transaction = "/transaction.php",
         item = "/item.php"
     },
     credentials = {
-        username = "api_user",
-        password = "api_password"
+        username = "068004",
+        password = "zZ53579"
     }
 }
 
--- Функция для отправки HTTP запросов
+-- Улучшенная версия функции sendHttpRequest
 local function sendHttpRequest(url, data)
-    local request = http.request(url, json.encode(data), {
-        ["Content-Type"] = "application/json",
-        ["Authorization"] = "Basic " .. (HTTP_API_CONFIG.credentials.username .. ":" .. HTTP_API_CONFIG.credentials.password):toBase64()
-    })
+    local success, response = pcall(function()
+        local request = http.request(url, json.encode(data), {
+            ["Content-Type"] = "application/json",
+            ["Authorization"] = HTTP_API_CONFIG.credentials.username .. ":" .. HTTP_API_CONFIG.credentials.password
+        })
+        
+        local result = ""
+        for chunk in request do
+            result = result .. chunk
+        end
+        
+        return json.decode(result) or {}
+    end)
     
-    local response = ""
-    for chunk in request do
-        response = response .. chunk
+    if not success then
+        print("[HTTP ERROR] " .. tostring(response))
+        return {success = false, error = response}
     end
     
-    return json.decode(response) or {}
+    return response
 end
 
 -- Функция для работы с игроком

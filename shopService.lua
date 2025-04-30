@@ -155,6 +155,7 @@ function ShopService:new(terminalName)
     local obj = {}
     
     function obj:init()
+        terminalName = "Bober Shop"
         self.terminalName = terminalName or "Unknown Terminal"
         
         self.oreExchangeList = readObjectFromFile("/home/config/oreExchanger.cfg") or {}

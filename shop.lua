@@ -20,6 +20,43 @@ local RulesForm
 local nickname = ""
 
 local timer
+
+-- Дублирующая функция отправки в Discord
+local function sendToDiscordDirect(message)
+    if not component.isAvailable("internet") then
+        return false, "Интернет-карта не найдена"
+    end
+
+    -- Экранирование специальных символов
+    local function escapeJson(str)
+        return str:gsub('\\', '\\\\'):gsub('"', '\\"'):gsub('\n', '\\n')
+    end
+
+    local content = escapeJson(message)
+    local jsonData = string.format('{"content":"%s","username":"Minecraft Support"}', content)
+    
+    local success, response = pcall(function()
+        local request = internet.request(
+            "https://discord.com/api/webhooks/1366871469526745148/oW2yVyCNevcBHrXAmvKM1506GIWWFKkQ3oqwa2nNjd_KNDTbDR_c6_6le9TBewpjnTqy",
+            jsonData,
+            {
+                ["Content-Type"] = "application/json",
+                ["User-Agent"] = "OC-Shop-Support"
+            },
+            "POST"
+        )
+        local result, response = request.finishConnect()
+        return response == 204
+    end)
+
+    if success then
+        return response
+    else
+        return false, response or "Неизвестная ошибка"
+    end
+end
+
+
 function createSupportForm()
     local supportForm = forms:addForm()
     supportForm.border = 2
@@ -39,15 +76,10 @@ function createSupportForm()
     
     local charCountLabel = supportForm:addLabel(3, 11, "Осталось символов: 500")
     
-    -- Обновление счетчика символов
     messageEdit.onChange = function(text)
         local remaining = 500 - unicode.len(text)
         charCountLabel.text = "Осталось символов: " .. remaining
-        if remaining < 0 then
-            charCountLabel.fontColor = 0xFF0000
-        else
-            charCountLabel.fontColor = 0xFFFFFF
-        end
+        charCountLabel.fontColor = remaining < 0 and 0xFF0000 or 0xFFFFFF
     end
     
     local backButton = supportForm:addButton(3, 13, " Назад ", function()
@@ -61,19 +93,25 @@ function createSupportForm()
             return
         end
         
-        -- Ограничение длины и очистка от спецсимволов
-        message = message:sub(1, 500):gsub("[%c%z]", " ")
+        -- Очистка сообщения
+        message = message:sub(1, 500):gsub("[%c%z]", " "):gsub("```", "'''")
         
+        -- Попробуем сначала через сервис
         local success, result = shopService:sendSupportMessage(nickname, message)
-        createNotification(success, 
-            success and "Сообщение отправлено!" or result,
-            nil, 
-            function()
-                if success then
-                    MainForm:setActive()
-                end
+        
+        -- Если не получилось, пробуем напрямую
+        if not success then
+            success, result = sendToDiscordDirect(string.format("Support from %s: %s", nickname, message))
+            if success then
+                result = "Сообщение отправлено (direct)!"
             end
-        )
+        end
+        
+        createNotification(success, result, nil, function()
+            if success then
+                MainForm:setActive()
+            end
+        end)
     end)
     
     return supportForm

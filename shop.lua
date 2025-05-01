@@ -263,11 +263,6 @@ function createMainForm(nick)
     MainForm:addLabel(5, 6, "Баланс: ")
     MainForm:addLabel(17, 6, shopService:getBalance(nick))
 
-    --[[local sellButton = MainForm:addButton(60, 5, " Выход ", function()
-        AutorizationForm:setActive()
-    end)
-    sellButton.H = 3
-    sellButton.W = 15]]
     local exitButton = MainForm:addButton(60, 23, " Выход ", function()
         AutorizationForm:setActive()
     end)

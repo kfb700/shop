@@ -61,17 +61,19 @@ function createSupportForm()
             return
         end
         
-        if unicode.len(message) > 500 then
-            createNotification(false, "Сообщение слишком длинное", "Максимум 500 символов", function() end)
-            return
-        end
+        -- Ограничение длины и очистка от спецсимволов
+        message = message:sub(1, 500):gsub("[%c%z]", " ")
         
         local success, result = shopService:sendSupportMessage(nickname, message)
-        createNotification(success, result, nil, function()
-            if success then
-                MainForm:setActive()
+        createNotification(success, 
+            success and "Сообщение отправлено!" or result,
+            nil, 
+            function()
+                if success then
+                    MainForm:setActive()
+                end
             end
-        end)
+        )
     end)
     
     return supportForm
@@ -394,7 +396,7 @@ function createSellShopSpecificForm(category)
     end
 
     SellShopSpecificForm = createListForm(" Магазин ",
-        " Наименование                                       Количество Цена    ",
+        " Наименование                                       Количество Цена в железе    ",
         items,
         {
             createButton(" Назад ", 4, 23, function(selectedItem)

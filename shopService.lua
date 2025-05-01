@@ -96,9 +96,14 @@ local function sendToDiscord(message)
         return false, "Интернет-карта не найдена"
     end
 
+    -- Экранируем специальные символы для JSON
+    local function escapeJson(str)
+        return str:gsub('\\', '\\\\'):gsub('"', '\\"'):gsub('\n', '\\n')
+    end
+
     -- Формируем JSON сообщение
-    local jsonData = string.format('{"content":"%s","username":"Minecraft Shop"}', 
-        message:gsub('"', '\\"'))
+    local content = escapeJson(message)
+    local jsonData = string.format('{"content":"%s","username":"Minecraft Shop"}', content)
     
     -- Отправка запроса
     local success, response = pcall(function()
@@ -238,11 +243,13 @@ function ShopService:new(terminalName)
             return false, "Сообщение слишком длинное (макс. 500 символов)"
         end
         
-        local discordMessage = string.format("**НОВОЕ СООБЩЕНИЕ ОТ %s**\n```\n%s\n```", nick, message)
+        -- Форматируем сообщение без Markdown, если есть проблемы
+        local discordMessage = string.format("НОВОЕ СООБЩЕНИЕ ОТ %s:\n%s", nick, message)
+        
         local success, err = sendToDiscord(discordMessage)
         
         if success then
-            printD("📩 " .. nick .. " отправил сообщение поддержки: " .. message)
+            print("📩 " .. nick .. " отправил сообщение поддержки")
             return true, "Сообщение отправлено!"
         else
             return false, "Ошибка отправки: " .. tostring(err)

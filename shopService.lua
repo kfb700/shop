@@ -114,8 +114,8 @@ local function sendToDiscord(message)
         return request.finishConnect()
     end)
 
-    -- Обработка результата
-    if success then
+     Обработка результата
+    --[[if success then
         if response == 204 then
             print("✅ Сообщение отправлено в Discord")
             return true
@@ -127,7 +127,7 @@ local function sendToDiscord(message)
         print("❌ Ошибка отправки:")
         print(response)
         return false
-    end
+    end]]
 end
 
 local function printD(message)

@@ -93,7 +93,7 @@ local function sendToDiscord(message)
     -- Проверка интернет-карты
     if not component.isAvailable("internet") then
         print("❌ Интернет-карта не найдена!")
-        return false
+        return false, "Интернет-карта не найдена"
     end
 
     -- Формируем JSON сообщение
@@ -111,21 +111,22 @@ local function sendToDiscord(message)
             },
             "POST"
         )
-        local result = request.finishConnect()
-        return result == 204 -- Discord возвращает 204 при успешной отправке
+        local result, response = request.finishConnect()
+        return response == 204 -- Discord возвращает 204 при успешной отправке
     end)
+
+    -- Обработка результата
     if success then
         if response then
             print("✅ Сообщение отправлено в Discord")
             return true
         else
-            print("⚠️ Ошибка отправки в Discord")
-            return false
+            print("⚠️ Discord вернул ошибку")
+            return false, "Discord вернул ошибку"
         end
     else
-        print("❌ Ошибка при отправке:")
-        print(response)
-        return false
+        print("❌ Ошибка при отправке:", response)
+        return false, response or "Неизвестная ошибка"
     end
 end
 
@@ -238,13 +239,13 @@ function ShopService:new(terminalName)
         end
         
         local discordMessage = string.format("**НОВОЕ СООБЩЕНИЕ ОТ %s**\n```\n%s\n```", nick, message)
-        local success, err = pcall(sendToDiscord, discordMessage)
+        local success, err = sendToDiscord(discordMessage)
         
-        if success and err then
+        if success then
             printD("📩 " .. nick .. " отправил сообщение поддержки: " .. message)
             return true, "Сообщение отправлено!"
         else
-            return false, "Ошибка отправки сообщения: " .. tostring(err)
+            return false, "Ошибка отправки: " .. tostring(err)
         end
     end
 

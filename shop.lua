@@ -57,17 +57,17 @@ function createSupportForm()
     local sendButton = supportForm:addButton(35, 13, " Отправить ", function()
         local message = messageEdit.text
         if not message or message == "" then
-            createNotification(nil, "Сообщение не может быть пустым", nil, function() end)
+            createNotification(false, "Сообщение не может быть пустым", nil, function() end)
             return
         end
         
         if unicode.len(message) > 500 then
-            createNotification(nil, "Сообщение слишком длинное", "Максимум 500 символов", function() end)
+            createNotification(false, "Сообщение слишком длинное", "Максимум 500 символов", function() end)
             return
         end
         
         local success, result = shopService:sendSupportMessage(nickname, message)
-        createNotification(nil, result, nil, function()
+        createNotification(success, result, nil, function()
             if success then
                 MainForm:setActive()
             end

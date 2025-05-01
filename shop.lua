@@ -263,12 +263,18 @@ function createMainForm(nick)
     MainForm:addLabel(5, 6, "Баланс: ")
     MainForm:addLabel(17, 6, shopService:getBalance(nick))
 
-    local exitButton = MainForm:addButton(60, 23, " Выход ", function()
+    -- Кнопки внизу формы
+    local exitButton = MainForm:addButton(5, 23, " Выход ", function()
         AutorizationForm:setActive()
     end)
     exitButton.H = 1
     exitButton.W = 9
 
+    local supportButton = MainForm:addButton(17, 23, " Связаться с нами ", function()
+        createSupportForm():setActive()
+    end)
+    supportButton.H = 1
+    supportButton.W = 18
 
     local itemCounterNumberSelectDepositBalanceForm = createNumberEditForm(function(count)
         local _, message = shopService:depositMoney(nick, count)
@@ -300,57 +306,37 @@ function createMainForm(nick)
         end)
     end, MainForm, "Снять")
 
-   -- local depositButton = MainForm:addButton(36, 4, "Пополнить ", function()
-   --     itemCounterNumberSelectDepositBalanceForm:setActive()
-   -- end)
-   -- depositButton.W = 20
+    local screenWidth = 80
+    local buttonWidth = 34
+    local gap = 4
 
-  --  local withdrawButton = MainForm:addButton(36, 6, "Снять с баланса ", function()
-   --     itemCounterNumberSelectWithdrawBalanceForm:setActive()
-   -- end)
-   -- withdrawButton.W = 20
+    local buyButtonX = (screenWidth - (2 * buttonWidth + gap)) // 2
+    local depositButtonX = buyButtonX + buttonWidth + gap
 
-   -- MainForm:addLabel(5, 8, "Количество предметов: ")
-  --  MainForm:addLabel(27, 8, shopService:getItemCount(nick))
+    local buyButton = MainForm:addButton(buyButtonX, 17, " Купить ", function()
+        createSellShopForm()
+    end)
+    buyButton.H = 3
+    buyButton.W = buttonWidth
+    buyButton.color = 0x006600
+    buyButton.fontColor = 0xFFFFFF
 
-   -- local withdrawButton = MainForm:addButton(36, 8, "Забрать предметы", function()
-   --     createGarbageForm()
-  --  end)
-  --  withdrawButton.W = 20
+    local depositButton = MainForm:addButton(depositButtonX, 17, " Пополнить баланс ", function()
+        createBuyShopForm()
+    end)
+    depositButton.H = 3
+    depositButton.W = buttonWidth
+    depositButton.color = 0xFFA500
+    depositButton.fontColor = 0xFFFFFF
 
-local screenWidth = 80  -- Предполагаемая ширина экрана (может потребоваться подстройка)
-local buttonWidth = 34  -- Ширина каждой из двух верхних кнопок
-local gap = 4           -- Расстояние между кнопками
-
--- Рассчитываем позиции для кнопок "Купить" и "Пополнить баланс"
-local buyButtonX = (screenWidth - (2 * buttonWidth + gap)) // 2
-local depositButtonX = buyButtonX + buttonWidth + gap
-
-local buyButton = MainForm:addButton(buyButtonX, 17, " Купить ", function()
-    createSellShopForm()
-end)
-buyButton.H = 3
-buyButton.W = buttonWidth
-buyButton.color = 0x006600      -- Зеленый фон
-buyButton.fontColor = 0xFFFFFF  -- Белый текст
-
-local depositButton = MainForm:addButton(depositButtonX, 17, " Пополнить баланс ", function()
-    createBuyShopForm()
-end)
-depositButton.H = 3
-depositButton.W = buttonWidth
-depositButton.color = 0xFFA500  -- Желтый фон
-depositButton.fontColor = 0xFFFFFF -- Черный текст
-
--- Кнопка с условиями (центрированная, занимает почти всю ширину)
-local rulesButtonX = (screenWidth - 70) // 2  -- Центрирование
-local rulesButton = MainForm:addButton(rulesButtonX, 21, " Используя магазин вы соглашаетесь с условиями ", function()
-    RulesForm:setActive()
-end)
-rulesButton.H = 3
-rulesButton.W = 70
-rulesButton.color = 0x333333  -- Желтый фон
-rulesButton.fontColor = 0xFF8F00 -- Черный текст
+    local rulesButtonX = (screenWidth - 70) // 2
+    local rulesButton = MainForm:addButton(rulesButtonX, 21, " Используя магазин вы соглашаетесь с условиями ", function()
+        RulesForm:setActive()
+    end)
+    rulesButton.H = 3
+    rulesButton.W = 70
+    rulesButton.color = 0x333333
+    rulesButton.fontColor = 0xFF8F00
 
     return MainForm
 end

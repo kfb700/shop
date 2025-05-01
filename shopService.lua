@@ -114,8 +114,6 @@ local function sendToDiscord(message)
         end
     end)
     
-    -- Всегда возвращаем успех
-    --print("✅ Сообщение отправлено в Discord")
     return true
 end
 

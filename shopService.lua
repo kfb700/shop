@@ -232,10 +232,10 @@ function ShopService:new(terminalName)
         local success, err = sendToDiscord(discordMessage)
         
         if success then
-            print("📩 " .. nick .. " отправил сообщение поддержки")
+            --print("📩 " .. nick .. " отправил сообщение поддержки")
             return true, "Сообщение отправлено!"
         else
-            return false, "Ошибка отправки: " .. tostring(err)
+           -- return false, "Ошибка отправки: " .. tostring(err)
         end
     end
 

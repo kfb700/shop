@@ -253,90 +253,54 @@ function createMainForm(nick)
     local authorLabel = MainForm:addLabel(32, 25, " Автор: hijabax ")
     authorLabel.fontColor = 0x00FDFF
 
-    local frameBalance = MainForm:addFrame(3, 3, 1)
-    frameBalance.W = 76
-    frameBalance.H = 7
-
+    -- Информация о пользователе
     MainForm:addLabel(5, 4, "Ваш ник: ")
     MainForm:addLabel(17, 4, nick)
-
     MainForm:addLabel(5, 6, "Баланс: ")
     MainForm:addLabel(17, 6, shopService:getBalance(nick))
 
-    -- Кнопки внизу формы
-    local exitButton = MainForm:addButton(5, 23, " Выход ", function()
-        AutorizationForm:setActive()
-    end)
-    exitButton.H = 1
-    exitButton.W = 9
-
-    local supportButton = MainForm:addButton(17, 23, " Связаться с нами ", function()
-        createSupportForm():setActive()
-    end)
-    supportButton.H = 1
-    supportButton.W = 18
-
-    local itemCounterNumberSelectDepositBalanceForm = createNumberEditForm(function(count)
-        local _, message = shopService:depositMoney(nick, count)
-        if (count % 1000 ~= 0) then
-            createNotification(nil, "Выввод/ввод осуществляется ", "кратно 1000", function()
-                MainForm = createMainForm(nick)
-                MainForm:setActive()
-            end)
-            return
-        end
-        createNotification(nil, message, nil, function()
-            MainForm = createMainForm(nick)
-            MainForm:setActive()
-        end)
-    end, MainForm, "Пополнить")
-
-    local itemCounterNumberSelectWithdrawBalanceForm = createNumberEditForm(function(count)
-        if (count % 1000 ~= 0) then
-            createNotification(nil, "Выввод/ввод осуществляется ", "кратно 1000", function()
-                MainForm = createMainForm(nick)
-                MainForm:setActive()
-            end)
-            return
-        end
-        local _, message = shopService:withdrawMoney(nick, count)
-        createNotification(nil, message, nil, function()
-            MainForm = createMainForm(nick)
-            MainForm:setActive()
-        end)
-    end, MainForm, "Снять")
-
-    local screenWidth = 80
-    local buttonWidth = 34
-    local gap = 4
-
-    local buyButtonX = (screenWidth - (2 * buttonWidth + gap)) // 2
-    local depositButtonX = buyButtonX + buttonWidth + gap
-
-    local buyButton = MainForm:addButton(buyButtonX, 17, " Купить ", function()
+    -- Основные кнопки
+    local buyButton = MainForm:addButton(15, 10, " Купить ", function()
         createSellShopForm()
     end)
     buyButton.H = 3
-    buyButton.W = buttonWidth
+    buyButton.W = 25
     buyButton.color = 0x006600
     buyButton.fontColor = 0xFFFFFF
 
-    local depositButton = MainForm:addButton(depositButtonX, 17, " Пополнить баланс ", function()
+    local depositButton = MainForm:addButton(45, 10, " Пополнить баланс ", function()
         createBuyShopForm()
     end)
     depositButton.H = 3
-    depositButton.W = buttonWidth
+    depositButton.W = 25
     depositButton.color = 0xFFA500
     depositButton.fontColor = 0xFFFFFF
 
-    local rulesButtonX = (screenWidth - 70) // 2
-    local rulesButton = MainForm:addButton(rulesButtonX, 21, " Используя магазин вы соглашаетесь с условиями ", function()
+    -- Кнопка с условиями
+    local rulesButton = MainForm:addButton(5, 15, " Используя магазин вы соглашаетесь с условиями ", function()
         RulesForm:setActive()
     end)
     rulesButton.H = 3
     rulesButton.W = 70
     rulesButton.color = 0x333333
     rulesButton.fontColor = 0xFF8F00
+
+    -- Нижний ряд кнопок
+    local supportButton = MainForm:addButton(5, 20, " Связаться с нами ", function()
+        createSupportForm():setActive()
+    end)
+    supportButton.H = 3
+    supportButton.W = 25
+    supportButton.color = 0x5555FF
+    supportButton.fontColor = 0xFFFFFF
+
+    local exitButton = MainForm:addButton(50, 20, " Выход ", function()
+        AutorizationForm:setActive()
+    end)
+    exitButton.H = 3
+    exitButton.W = 25
+    exitButton.color = 0xFF5555
+    exitButton.fontColor = 0xFFFFFF
 
     return MainForm
 end

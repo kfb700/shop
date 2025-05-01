@@ -1,6 +1,6 @@
 local component = require('component')
 local computer = require('computer')
-local forms = require("forms") -- подключаем библиотеку
+local forms = require("forms")
 local gpu = component.gpu
 local unicode = require('unicode')
 gpu.setResolution(80, 25)
@@ -20,57 +20,6 @@ local RulesForm
 local nickname = ""
 
 local timer
-
-
-function createFeedbackForm()
-    local FeedbackForm = forms.addForm()
-    FeedbackForm.border = 1
-    local shopNameLabel = FeedbackForm:addLabel(33, 1, " Bober Shop ")
-    shopNameLabel.fontColor = 0x00FDFF
-    local authorLabel = FeedbackForm:addLabel(32, 25, " Автор: hijabax ")
-    authorLabel.fontColor = 0x00FDFF
-
-    -- Заголовок формы
-    FeedbackForm:addLabel(15, 4, "Случилась проблема? Предложения?")
-    FeedbackForm:addLabel(10, 5, "Отправьте сообщение ниже и мы свяжемся с вами!")
-
-    -- Поле для ввода сообщения
-    local messageEdit = FeedbackForm:addEdit(5, 7)
-    messageEdit.W = 70
-    messageEdit.H = 5
-    messageEdit.multiline = true
-
-    -- Кнопка отправки
-    local sendButton = FeedbackForm:addButton(30, 13, " Отправить ", function()
-        local message = messageEdit.text
-        if message and #message > 0 then
-            -- Отправляем сообщение в Discord
-            local discordMessage = string.format("Сообщение от %s: %s", nickname, message)
-            sendToDiscord(discordMessage)
-            
-            -- Уведомление игроку
-            createNotification(true, "Ваше сообщение отправлено!", "Спасибо за обратную связь", function()
-                MainForm:setActive()
-            end)
-        else
-            createNotification(false, "Введите сообщение!", nil, function()
-                FeedbackForm:setActive()
-            end)
-        end
-    end)
-    sendButton.W = 20
-    sendButton.H = 3
-
-    -- Кнопка назад
-    local backButton = FeedbackForm:addButton(3, 23, " Назад ", function()
-        MainForm:setActive()
-    end)
-
-    return FeedbackForm
-end
-
-
-
 
 function createNotification(status, text, secondText, callback)
     local notificationForm = forms:addForm()
@@ -114,34 +63,32 @@ function createNumberEditForm(callback, form, buttonText)
 end
 
 function createAutorizationForm()
-    local AutorizationForm = forms.addForm() -- создаем основную форму
+    local AutorizationForm = forms.addForm()
     AutorizationForm.border = 1
     
-
     local authorLabel = AutorizationForm:addLabel(32, 25, " Автор: hijabax ")
     authorLabel.fontColor = 0x00FDFF
 
-local nameLabel1 = AutorizationForm:addLabel(11, 3, " ____            _                     ")
-local nameLabel2 = AutorizationForm:addLabel(11, 4, "|  _ \\          | |                    ")
-local nameLabel3 = AutorizationForm:addLabel(11, 5, "| |_) |   ___   | |__     ___   _ __   ")
-local nameLabel4 = AutorizationForm:addLabel(11, 6, "|  _ <   / _ \\  | '_ \\   / _ \\ | '__|  ")
-local nameLabel5 = AutorizationForm:addLabel(11, 7, "| |_) | | (_) | | |_) | |  __/ | |     ")
-local nameLabel6 = AutorizationForm:addLabel(11, 8, "|____/   \\___/  |_.__/   \\___| |_|     ")
-local nameLabel7 = AutorizationForm:addLabel(11, 9, "  _____   _                            ")
-local nameLabel8 = AutorizationForm:addLabel(11, 10," / ____| | |                           ")
-local nameLabel9 = AutorizationForm:addLabel(11, 11,"| (___   | |__     ___    _ __         ")
-local nameLabel10 = AutorizationForm:addLabel(11, 12," \\___ \\  | '_ \\   / _ \\  | '_ \\       ")
-local nameLabel11 = AutorizationForm:addLabel(11, 13," ____) | | | | | | (_) | | |_) |      ")
-local nameLabel12 = AutorizationForm:addLabel(11, 14,"|_____/  |_| |_|  \\___/  | .__/       ")
-local nameLabel13 = AutorizationForm:addLabel(11, 15,"                         | |          ")
-local nameLabel14 = AutorizationForm:addLabel(11, 16,"                         |_|          ")
-local nameLabel15 = AutorizationForm:addLabel(11, 17,"                      ")
-local nameLabel15 = AutorizationForm:addLabel(11, 18,"            Встаньте на PIM          ")
+    local nameLabel1 = AutorizationForm:addLabel(11, 3, " ____            _                     ")
+    local nameLabel2 = AutorizationForm:addLabel(11, 4, "|  _ \\          | |                    ")
+    local nameLabel3 = AutorizationForm:addLabel(11, 5, "| |_) |   ___   | |__     ___   _ __   ")
+    local nameLabel4 = AutorizationForm:addLabel(11, 6, "|  _ <   / _ \\  | '_ \\   / _ \\ | '__|  ")
+    local nameLabel5 = AutorizationForm:addLabel(11, 7, "| |_) | | (_) | | |_) | |  __/ | |     ")
+    local nameLabel6 = AutorizationForm:addLabel(11, 8, "|____/   \\___/  |_.__/   \\___| |_|     ")
+    local nameLabel7 = AutorizationForm:addLabel(11, 9, "  _____   _                            ")
+    local nameLabel8 = AutorizationForm:addLabel(11, 10," / ____| | |                           ")
+    local nameLabel9 = AutorizationForm:addLabel(11, 11,"| (___   | |__     ___    _ __         ")
+    local nameLabel10 = AutorizationForm:addLabel(11, 12," \\___ \\  | '_ \\   / _ \\  | '_ \\       ")
+    local nameLabel11 = AutorizationForm:addLabel(11, 13," ____) | | | | | | (_) | | |_) |      ")
+    local nameLabel12 = AutorizationForm:addLabel(11, 14,"|_____/  |_| |_|  \\___/  | .__/       ")
+    local nameLabel13 = AutorizationForm:addLabel(11, 15,"                         | |          ")
+    local nameLabel14 = AutorizationForm:addLabel(11, 16,"                         |_|          ")
+    local nameLabel15 = AutorizationForm:addLabel(11, 17,"                      ")
+    local nameLabel15 = AutorizationForm:addLabel(11, 18,"            Встаньте на PIM          ")
     authorLabel.fontColor = 0x00FDFF
 
     return AutorizationForm
 end
-
 
 function createListForm(name, label, items, buttons, filter)
     local ShopForm = forms.addForm()
@@ -171,7 +118,6 @@ function createListForm(name, label, items, buttons, filter)
 
     local searchEdit = ShopForm:addEdit(3, 2)
     searchEdit.W = 15
-
 
     local searchButton = ShopForm:addButton(19, 3, " Поиск ", function()
         createListForm(name, label, items, buttons, searchEdit.text):setActive()
@@ -263,7 +209,6 @@ function createMainForm(nick)
     local buttonWidth = 34
     local gap = 4
 
-    -- Рассчитываем позиции для кнопок "Купить" и "Пополнить баланс"
     local buyButtonX = (screenWidth - (2 * buttonWidth + gap)) // 2
     local depositButtonX = buyButtonX + buttonWidth + gap
 
@@ -283,40 +228,28 @@ function createMainForm(nick)
     depositButton.color = 0xFFA500
     depositButton.fontColor = 0xFFFFFF
 
-    -- Кнопка выхода (перенесена выше)
     local exitButton = MainForm:addButton(60, 5, " Выход ", function()
         AutorizationForm:setActive()
     end)
     exitButton.H = 3
     exitButton.W = 15
 
-    -- Добавляем форму обратной связи прямо на главную страницу
+    -- Добавленная форма обратной связи
     MainForm:addLabel(5, 21, "Проблема/предложение:")
     
-    -- Поле ввода сообщения
     local messageEdit = MainForm:addEdit(5, 22)
     messageEdit.W = 60
     messageEdit.H = 1
     
-    -- Кнопка отправки
     local sendButton = MainForm:addButton(66, 22, "Отправить", function()
         local message = messageEdit.text
         if message and #message > 0 then
-            -- Отправляем сообщение в Discord
             local discordMessage = string.format("Сообщение от %s: %s", nick, message)
             sendToDiscord(discordMessage)
-            
-            -- Очищаем поле ввода
             messageEdit.text = ""
-            
-            -- Уведомление игроку
-            createNotification(true, "Сообщение отправлено!", "Спасибо за обратную связь", function()
-                -- Ничего не делаем, остаемся на форме
-            end)
+            createNotification(true, "Сообщение отправлено!", "Спасибо за обратную связь", function() end)
         else
-            createNotification(false, "Введите сообщение!", nil, function()
-                -- Ничего не делаем, остаемся на форме
-            end)
+            createNotification(false, "Введите сообщение!", nil, function() end)
         end
     end)
     sendButton.H = 1
@@ -324,7 +257,6 @@ function createMainForm(nick)
     sendButton.color = 0x0066FF
     sendButton.fontColor = 0xFFFFFF
 
-    -- Кнопка с условиями (перенесена вниз)
     local rulesButton = MainForm:addButton(5, 24, " Используя магазин вы соглашаетесь с условиями ", function()
         RulesForm:setActive()
     end)
@@ -335,7 +267,6 @@ function createMainForm(nick)
 
     return MainForm
 end
-
 
 function createSellShopForm()
     SellShopForm = forms.addForm()
@@ -404,7 +335,6 @@ function createSellShopForm()
 
     SellShopForm:setActive()
 end
-
 
 function createSellShopSpecificForm(category)
     local items = shopService:getSellShopList(category)
@@ -644,7 +574,6 @@ end
 AutorizationForm = createAutorizationForm()
 RulesForm = createRulesForm()
 
-
 local Event1 = AutorizationForm:addEvent("player_on", function(e, p)
     gpu.setResolution(80, 25)
     if (p) then
@@ -663,6 +592,4 @@ local Event1 = AutorizationForm:addEvent("player_off", function(e, p)
     AutorizationForm:setActive()
 end)
 
-forms.run(AutorizationForm) --запускаем gui
-
-
+forms.run(AutorizationForm)

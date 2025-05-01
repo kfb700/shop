@@ -114,8 +114,8 @@ local function sendToDiscord(message)
         return request.finishConnect()
     end)
 
-     Обработка результата
-    --[[if success then
+    --[[Обработка результата
+        if success then
         if response == 204 then
             print("✅ Сообщение отправлено в Discord")
             return true
@@ -245,7 +245,7 @@ function ShopService:new(terminalName)
             return false, "Ошибка отправки сообщения"
         end
     end
-    
+
     function obj:depositMoney(nick, count)
         local countOfMoney = itemUtils.takeMoney(count)
         if countOfMoney > 0 then

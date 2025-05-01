@@ -292,14 +292,17 @@ function createMainForm(nick)
     local authorLabel = MainForm:addLabel(32, 25, " Автор: hijabax ")
     authorLabel.fontColor = 0x00FDFF
 
-    -- Информация о пользователе
-    MainForm:addLabel(5, 4, "Ваш ник: ")
-    MainForm:addLabel(17, 4, nick)
-    MainForm:addLabel(5, 6, "Баланс: ")
-    MainForm:addLabel(17, 6, shopService:getBalance(nick))
+    -- Информация о пользователе с увеличенным шрифтом
+    MainForm:addLabel(5, 3, "Ваш ник: ").fontSize = 1.2  -- Увеличиваем размер шрифта
+    local nickLabel = MainForm:addLabel(20, 3, nick)
+    nickLabel.fontSize = 1.2  -- Увеличиваем размер шрифта
+    
+    MainForm:addLabel(5, 5, "Баланс: ").fontSize = 1.2  -- Увеличиваем размер шрифта
+    local balanceLabel = MainForm:addLabel(20, 5, shopService:getBalance(nick))
+    balanceLabel.fontSize = 1.2  -- Увеличиваем размер шрифта
 
-    -- Основные кнопки
-    local buyButton = MainForm:addButton(15, 10, " Купить ", function()
+    -- Первый ряд кнопок (Купить и Продать)
+    local buyButton = MainForm:addButton(15, 8, " Купить ", function()
         createSellShopForm()
     end)
     buyButton.H = 3
@@ -307,25 +310,16 @@ function createMainForm(nick)
     buyButton.color = 0x006600
     buyButton.fontColor = 0xFFFFFF
 
-    local depositButton = MainForm:addButton(45, 10, " Пополнить баланс ", function()
+    local sellButton = MainForm:addButton(45, 8, " Продать ", function()
         createBuyShopForm()
     end)
-    depositButton.H = 3
-    depositButton.W = 25
-    depositButton.color = 0xFFA500
-    depositButton.fontColor = 0xFFFFFF
+    sellButton.H = 3
+    sellButton.W = 25
+    sellButton.color = 0xFFA500
+    sellButton.fontColor = 0xFFFFFF
 
-    -- Кнопка с условиями
-    local rulesButton = MainForm:addButton(5, 15, " Используя магазин вы соглашаетесь с условиями ", function()
-        RulesForm:setActive()
-    end)
-    rulesButton.H = 3
-    rulesButton.W = 70
-    rulesButton.color = 0x333333
-    rulesButton.fontColor = 0xFF8F00
-
-    -- Нижний ряд кнопок
-    local supportButton = MainForm:addButton(5, 20, " Связаться с нами ", function()
+    -- Второй ряд кнопок (Связаться с нами, Правила, Выход)
+    local supportButton = MainForm:addButton(5, 13, " Связаться с нами ", function()
         createSupportForm():setActive()
     end)
     supportButton.H = 3
@@ -333,7 +327,15 @@ function createMainForm(nick)
     supportButton.color = 0x5555FF
     supportButton.fontColor = 0xFFFFFF
 
-    local exitButton = MainForm:addButton(50, 20, " Выход ", function()
+    local rulesButton = MainForm:addButton(32, 13, " Правила ", function()
+        RulesForm:setActive()
+    end)
+    rulesButton.H = 3
+    rulesButton.W = 25
+    rulesButton.color = 0x333333
+    rulesButton.fontColor = 0xFF8F00
+
+    local exitButton = MainForm:addButton(59, 13, " Выход ", function()
         AutorizationForm:setActive()
     end)
     exitButton.H = 3

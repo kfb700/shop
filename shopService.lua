@@ -111,13 +111,30 @@ local function sendToDiscord(message)
             },
             "POST"
         )
-        return request.finishConnect()
+        local result = request.finishConnect()
+        return result == 204 -- Discord возвращает 204 при успешной отправке
     end)
+    if success then
+        if response then
+            print("✅ Сообщение отправлено в Discord")
+            return true
+        else
+            print("⚠️ Ошибка отправки в Discord")
+            return false
+        end
+    else
+        print("❌ Ошибка при отправке:")
+        print(response)
+        return false
+    end
 end
 
 local function printD(message)
-    -- Сообщение отправляется только в Discord, не выводится на экран
-    sendToDiscord(message)
+    print(message)
+    local success = sendToDiscord(message)
+    if not success then
+        print("⚠️ Не удалось отправить сообщение в Discord")
+    end
 end
 
 local function readObjectFromFile(path)
@@ -221,13 +238,13 @@ function ShopService:new(terminalName)
         end
         
         local discordMessage = string.format("**НОВОЕ СООБЩЕНИЕ ОТ %s**\n```\n%s\n```", nick, message)
-        local success = sendToDiscord(discordMessage)
+        local success, err = pcall(sendToDiscord, discordMessage)
         
-        if success then
+        if success and err then
             printD("📩 " .. nick .. " отправил сообщение поддержки: " .. message)
             return true, "Сообщение отправлено!"
         else
-            return false, "Ошибка отправки сообщения"
+            return false, "Ошибка отправки сообщения: " .. tostring(err)
         end
     end
 

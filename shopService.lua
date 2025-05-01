@@ -84,6 +84,7 @@ end
 
 -- Теперь определяем ShopService
 ShopService = {}
+ShopService.__index = ShopService
 
 -- Конфигурация Discord Webhook
 local DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1366871469526745148/oW2yVyCNevcBHrXAmvKM1506GIWWFKkQ3oqwa2nNjd_KNDTbDR_c6_6le9TBewpjnTqy"
@@ -151,30 +152,33 @@ local function readObjectFromFile(path)
     return obj
 end
 
-function obj:init()
-    terminalName = "Bober Shop"
-    self.terminalName = terminalName or "Unknown Terminal"
+function ShopService:new(terminalName)
+    local obj = {}
+    setmetatable(obj, self)
     
-    self.oreExchangeList = readObjectFromFile("/home/config/oreExchanger.cfg") or {}
-    self.exchangeList = readObjectFromFile("/home/config/exchanger.cfg") or {}
-    self.sellShopList = readObjectFromFile("/home/config/sellShop.cfg") or {}
-    self.buyShopList = readObjectFromFile("/home/config/buyShop.cfg") or {}
+    obj.terminalName = terminalName or "Bober Shop"
+    
+    -- Инициализация данных
+    obj.oreExchangeList = readObjectFromFile("/home/config/oreExchanger.cfg") or {}
+    obj.exchangeList = readObjectFromFile("/home/config/exchanger.cfg") or {}
+    obj.sellShopList = readObjectFromFile("/home/config/sellShop.cfg") or {}
+    obj.buyShopList = readObjectFromFile("/home/config/buyShop.cfg") or {}
 
-    self.currencies = {
+    obj.currencies = {
         {item = {name = "minecraft:gold_nugget", damage = 0}, money = 1000},
         {item = {name = "minecraft:gold_ingot", damage = 0}, money = 10000},
         {item = {name = "minecraft:diamond", damage = 0}, money = 100000},
         {item = {name = "minecraft:emerald", damage = 0}, money = 1000000}
     }
 
-    itemUtils.setCurrency(self.currencies)
+    itemUtils.setCurrency(obj.currencies)
     
-    self.db = Database:new("USERS")
+    obj.db = Database:new("USERS")
     
     -- Сообщение только в Discord
-    printD("🔄 " .. self.terminalName .. " инициализирован")
-end
-
+    printD("🔄 " .. obj.terminalName .. " инициализирован")
+    
+    -- Методы объекта
     function obj:dbClause(fieldName, fieldValue, typeOfClause)
         return {
             column = fieldName,
@@ -257,10 +261,8 @@ end
         if not playerDataList or not playerDataList[1] then
             local newPlayer = {_id = nick, balance = 0, items = {}}
             if not self.db:insert(nick, newPlayer) then
-                -- Только в Discord
                 printD("⚠️ Ошибка создания игрока " .. nick .. " в " .. self.terminalName)
             else
-                -- Только в Discord
                 printD("🆕 Новый игрок " .. nick .. " зарегистрирован в " .. self.terminalName)
             end
             return newPlayer
@@ -504,9 +506,6 @@ end
         return 0, "Нет предметов в инвентаре!"
     end
 
-    obj:init()
-    setmetatable(obj, self)
-    self.__index = self
     return obj
 end
 

@@ -130,7 +130,7 @@ local function sendToDiscord(message)
 end
 
 local function printD(message)
-    print(message)
+    -- Сообщение отправляется только в Discord, не выводится на экран
     sendToDiscord(message)
 end
 
@@ -151,32 +151,29 @@ local function readObjectFromFile(path)
     return obj
 end
 
-function ShopService:new(terminalName)
-    local obj = {}
+function obj:init()
+    terminalName = "Bober Shop"
+    self.terminalName = terminalName or "Unknown Terminal"
     
-    function obj:init()
-        terminalName = "Bober Shop"
-        self.terminalName = terminalName or "Unknown Terminal"
-        
-        self.oreExchangeList = readObjectFromFile("/home/config/oreExchanger.cfg") or {}
-        self.exchangeList = readObjectFromFile("/home/config/exchanger.cfg") or {}
-        self.sellShopList = readObjectFromFile("/home/config/sellShop.cfg") or {}
-        self.buyShopList = readObjectFromFile("/home/config/buyShop.cfg") or {}
+    self.oreExchangeList = readObjectFromFile("/home/config/oreExchanger.cfg") or {}
+    self.exchangeList = readObjectFromFile("/home/config/exchanger.cfg") or {}
+    self.sellShopList = readObjectFromFile("/home/config/sellShop.cfg") or {}
+    self.buyShopList = readObjectFromFile("/home/config/buyShop.cfg") or {}
 
-        self.currencies = {
-            {item = {name = "minecraft:gold_nugget", damage = 0}, money = 1000},
-            {item = {name = "minecraft:gold_ingot", damage = 0}, money = 10000},
-            {item = {name = "minecraft:diamond", damage = 0}, money = 100000},
-            {item = {name = "minecraft:emerald", damage = 0}, money = 1000000}
-        }
+    self.currencies = {
+        {item = {name = "minecraft:gold_nugget", damage = 0}, money = 1000},
+        {item = {name = "minecraft:gold_ingot", damage = 0}, money = 10000},
+        {item = {name = "minecraft:diamond", damage = 0}, money = 100000},
+        {item = {name = "minecraft:emerald", damage = 0}, money = 1000000}
+    }
 
-        itemUtils.setCurrency(self.currencies)
-        
-        -- Инициализация базы данных
-        self.db = Database:new("USERS")
-        
-        printD("🔄 " .. self.terminalName .. " инициализирован")
-    end
+    itemUtils.setCurrency(self.currencies)
+    
+    self.db = Database:new("USERS")
+    
+    -- Сообщение только в Discord
+    printD("🔄 " .. self.terminalName .. " инициализирован")
+end
 
     function obj:dbClause(fieldName, fieldValue, typeOfClause)
         return {
@@ -260,8 +257,10 @@ function ShopService:new(terminalName)
         if not playerDataList or not playerDataList[1] then
             local newPlayer = {_id = nick, balance = 0, items = {}}
             if not self.db:insert(nick, newPlayer) then
+                -- Только в Discord
                 printD("⚠️ Ошибка создания игрока " .. nick .. " в " .. self.terminalName)
             else
+                -- Только в Discord
                 printD("🆕 Новый игрок " .. nick .. " зарегистрирован в " .. self.terminalName)
             end
             return newPlayer

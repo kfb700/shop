@@ -16,10 +16,62 @@ local OreExchangerForm
 local SellShopSpecificForm
 local BuyShopForm
 local RulesForm
+local FeedbackForm
 
 local nickname = ""
 
 local timer
+
+
+function createFeedbackForm()
+    local FeedbackForm = forms.addForm()
+    FeedbackForm.border = 1
+    local shopNameLabel = FeedbackForm:addLabel(33, 1, " Bober Shop ")
+    shopNameLabel.fontColor = 0x00FDFF
+    local authorLabel = FeedbackForm:addLabel(32, 25, " Автор: hijabax ")
+    authorLabel.fontColor = 0x00FDFF
+
+    -- Заголовок формы
+    FeedbackForm:addLabel(15, 4, "Случилась проблема? Предложения?")
+    FeedbackForm:addLabel(10, 5, "Отправьте сообщение ниже и мы свяжемся с вами!")
+
+    -- Поле для ввода сообщения
+    local messageEdit = FeedbackForm:addEdit(5, 7)
+    messageEdit.W = 70
+    messageEdit.H = 5
+    messageEdit.multiline = true
+
+    -- Кнопка отправки
+    local sendButton = FeedbackForm:addButton(30, 13, " Отправить ", function()
+        local message = messageEdit.text
+        if message and #message > 0 then
+            -- Отправляем сообщение в Discord
+            local discordMessage = string.format("Сообщение от %s: %s", nickname, message)
+            sendToDiscord(discordMessage)
+            
+            -- Уведомление игроку
+            createNotification(true, "Ваше сообщение отправлено!", "Спасибо за обратную связь", function()
+                MainForm:setActive()
+            end)
+        else
+            createNotification(false, "Введите сообщение!", nil, function()
+                FeedbackForm:setActive()
+            end)
+        end
+    end)
+    sendButton.W = 20
+    sendButton.H = 3
+
+    -- Кнопка назад
+    local backButton = FeedbackForm:addButton(3, 23, " Назад ", function()
+        MainForm:setActive()
+    end)
+
+    return FeedbackForm
+end
+
+
+
 
 function createNotification(status, text, secondText, callback)
     local notificationForm = forms:addForm()

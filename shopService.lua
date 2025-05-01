@@ -227,7 +227,7 @@ function ShopService:new(terminalName)
         end
         
         -- Форматируем сообщение без Markdown, если есть проблемы
-        local discordMessage = string.format("📩 Новое сообщение от: %s:\n%s", nick, message)
+        local discordMessage = string.format("📩 **Новое сообщение от** %s:**\n```%s```", nick, message)
         
         local success, err = sendToDiscord(discordMessage)
         

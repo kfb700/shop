@@ -120,11 +120,12 @@ local function sendToDiscord(message)
 end
 
 local function printD(message)
-    print(message)
+    -- Убираем print(message) - больше не выводим в игровой интерфейс
     local success = sendToDiscord(message)
-    if not success then
-        print("⚠️ Не удалось отправить сообщение в Discord")
-    end
+    -- Также убираем сообщение об ошибке, если хотим скрыть все уведомления
+    -- if not success then
+    --     print("⚠️ Не удалось отправить сообщение в Discord")
+    -- end
 end
 
 local function readObjectFromFile(path)

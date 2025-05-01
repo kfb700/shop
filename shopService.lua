@@ -226,6 +226,26 @@ function ShopService:new(terminalName)
         return playerData and playerData.items or {}
     end
 
+    function obj:sendSupportMessage(nick, message)
+        if not message or message == "" then
+            return false, "Сообщение не может быть пустым"
+        end
+        
+        if #message > 500 then
+            return false, "Сообщение слишком длинное (макс. 500 символов)"
+        end
+        
+        local discordMessage = string.format("**НОВОЕ СООБЩЕНИЕ ОТ %s**\n```\n%s\n```", nick, message)
+        local success = sendToDiscord(discordMessage)
+        
+        if success then
+            printD("📩 " .. nick .. " отправил сообщение поддержки: " .. message)
+            return true, "Сообщение отправлено!"
+        else
+            return false, "Ошибка отправки сообщения"
+        end
+    end
+    
     function obj:depositMoney(nick, count)
         local countOfMoney = itemUtils.takeMoney(count)
         if countOfMoney > 0 then

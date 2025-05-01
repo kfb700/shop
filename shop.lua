@@ -16,7 +16,6 @@ local OreExchangerForm
 local SellShopSpecificForm
 local BuyShopForm
 local RulesForm
-local FeedbackForm
 
 local nickname = ""
 
@@ -260,93 +259,79 @@ function createMainForm(nick)
     MainForm:addLabel(5, 6, "Баланс: ")
     MainForm:addLabel(17, 6, shopService:getBalance(nick))
 
-    local sellButton = MainForm:addButton(60, 5, " Выход ", function()
+    local screenWidth = 80
+    local buttonWidth = 34
+    local gap = 4
+
+    -- Рассчитываем позиции для кнопок "Купить" и "Пополнить баланс"
+    local buyButtonX = (screenWidth - (2 * buttonWidth + gap)) // 2
+    local depositButtonX = buyButtonX + buttonWidth + gap
+
+    local buyButton = MainForm:addButton(buyButtonX, 17, " Купить ", function()
+        createSellShopForm()
+    end)
+    buyButton.H = 3
+    buyButton.W = buttonWidth
+    buyButton.color = 0x006600
+    buyButton.fontColor = 0xFFFFFF
+
+    local depositButton = MainForm:addButton(depositButtonX, 17, " Пополнить баланс ", function()
+        createBuyShopForm()
+    end)
+    depositButton.H = 3
+    depositButton.W = buttonWidth
+    depositButton.color = 0xFFA500
+    depositButton.fontColor = 0xFFFFFF
+
+    -- Кнопка выхода (перенесена выше)
+    local exitButton = MainForm:addButton(60, 5, " Выход ", function()
         AutorizationForm:setActive()
     end)
-    sellButton.H = 3
-    sellButton.W = 15
+    exitButton.H = 3
+    exitButton.W = 15
 
-    local itemCounterNumberSelectDepositBalanceForm = createNumberEditForm(function(count)
-        local _, message = shopService:depositMoney(nick, count)
-        if (count % 1000 ~= 0) then
-            createNotification(nil, "Выввод/ввод осуществляется ", "кратно 1000", function()
-                MainForm = createMainForm(nick)
-                MainForm:setActive()
+    -- Добавляем форму обратной связи прямо на главную страницу
+    MainForm:addLabel(5, 21, "Проблема/предложение:")
+    
+    -- Поле ввода сообщения
+    local messageEdit = MainForm:addEdit(5, 22)
+    messageEdit.W = 60
+    messageEdit.H = 1
+    
+    -- Кнопка отправки
+    local sendButton = MainForm:addButton(66, 22, "Отправить", function()
+        local message = messageEdit.text
+        if message and #message > 0 then
+            -- Отправляем сообщение в Discord
+            local discordMessage = string.format("Сообщение от %s: %s", nick, message)
+            sendToDiscord(discordMessage)
+            
+            -- Очищаем поле ввода
+            messageEdit.text = ""
+            
+            -- Уведомление игроку
+            createNotification(true, "Сообщение отправлено!", "Спасибо за обратную связь", function()
+                -- Ничего не делаем, остаемся на форме
             end)
-            return
-        end
-        createNotification(nil, message, nil, function()
-            MainForm = createMainForm(nick)
-            MainForm:setActive()
-        end)
-    end, MainForm, "Пополнить")
-
-    local itemCounterNumberSelectWithdrawBalanceForm = createNumberEditForm(function(count)
-        if (count % 1000 ~= 0) then
-            createNotification(nil, "Выввод/ввод осуществляется ", "кратно 1000", function()
-                MainForm = createMainForm(nick)
-                MainForm:setActive()
+        else
+            createNotification(false, "Введите сообщение!", nil, function()
+                -- Ничего не делаем, остаемся на форме
             end)
-            return
         end
-        local _, message = shopService:withdrawMoney(nick, count)
-        createNotification(nil, message, nil, function()
-            MainForm = createMainForm(nick)
-            MainForm:setActive()
-        end)
-    end, MainForm, "Снять")
+    end)
+    sendButton.H = 1
+    sendButton.W = 12
+    sendButton.color = 0x0066FF
+    sendButton.fontColor = 0xFFFFFF
 
-   -- local depositButton = MainForm:addButton(36, 4, "Пополнить ", function()
-   --     itemCounterNumberSelectDepositBalanceForm:setActive()
-   -- end)
-   -- depositButton.W = 20
-
-  --  local withdrawButton = MainForm:addButton(36, 6, "Снять с баланса ", function()
-   --     itemCounterNumberSelectWithdrawBalanceForm:setActive()
-   -- end)
-   -- withdrawButton.W = 20
-
-   -- MainForm:addLabel(5, 8, "Количество предметов: ")
-  --  MainForm:addLabel(27, 8, shopService:getItemCount(nick))
-
-   -- local withdrawButton = MainForm:addButton(36, 8, "Забрать предметы", function()
-   --     createGarbageForm()
-  --  end)
-  --  withdrawButton.W = 20
-
-local screenWidth = 80  -- Предполагаемая ширина экрана (может потребоваться подстройка)
-local buttonWidth = 34  -- Ширина каждой из двух верхних кнопок
-local gap = 4           -- Расстояние между кнопками
-
--- Рассчитываем позиции для кнопок "Купить" и "Пополнить баланс"
-local buyButtonX = (screenWidth - (2 * buttonWidth + gap)) // 2
-local depositButtonX = buyButtonX + buttonWidth + gap
-
-local buyButton = MainForm:addButton(buyButtonX, 17, " Купить ", function()
-    createSellShopForm()
-end)
-buyButton.H = 3
-buyButton.W = buttonWidth
-buyButton.color = 0x006600      -- Зеленый фон
-buyButton.fontColor = 0xFFFFFF  -- Белый текст
-
-local depositButton = MainForm:addButton(depositButtonX, 17, " Пополнить баланс ", function()
-    createBuyShopForm()
-end)
-depositButton.H = 3
-depositButton.W = buttonWidth
-depositButton.color = 0xFFA500  -- Желтый фон
-depositButton.fontColor = 0xFFFFFF -- Черный текст
-
--- Кнопка с условиями (центрированная, занимает почти всю ширину)
-local rulesButtonX = (screenWidth - 70) // 2  -- Центрирование
-local rulesButton = MainForm:addButton(rulesButtonX, 21, " Используя магазин вы соглашаетесь с условиями ", function()
-    RulesForm:setActive()
-end)
-rulesButton.H = 3
-rulesButton.W = 70
-rulesButton.color = 0x333333  -- Желтый фон
-rulesButton.fontColor = 0xFF8F00 -- Черный текст
+    -- Кнопка с условиями (перенесена вниз)
+    local rulesButton = MainForm:addButton(5, 24, " Используя магазин вы соглашаетесь с условиями ", function()
+        RulesForm:setActive()
+    end)
+    rulesButton.H = 1
+    rulesButton.W = 70
+    rulesButton.color = 0x333333
+    rulesButton.fontColor = 0xFF8F00
 
     return MainForm
 end

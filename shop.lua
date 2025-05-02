@@ -140,7 +140,7 @@ function createNumberEditForm(callback, form, buttonText, pricePerItem, currentB
     itemCounterNumberForm.top = math.floor((form.H - itemCounterNumberForm.H) / 2)
 
     -- Элементы интерфейса
-    local balanceLabel, itemCountEdit, sumLabel1, sumLabel2
+    local balanceLabel, itemCountEdit
     
     itemCounterNumberForm:addLabel(8, 4, "Введите количество")
     itemCountEdit = itemCounterNumberForm:addEdit(8, 5)
@@ -152,55 +152,9 @@ function createNumberEditForm(callback, form, buttonText, pricePerItem, currentB
         balanceLabel = itemCounterNumberForm:addLabel(8, 2, "Баланс: " .. string.format("%.2f", currentBalance))
         balanceLabel.fontColor = 0xFFFFFF
         
-        sumLabel1 = itemCounterNumberForm:addLabel(8, 7, "Сумма1: 0.00")
-        sumLabel1.fontColor = 0x00FF00
-        
-        sumLabel2 = itemCounterNumberForm:addLabel(8, 8, "Сумма2: ")
-        sumLabel2.fontColor = 0x00FF00
     end
 
-    -- Функция обновления суммы
-    local function updateSum()
-        if not showCalculation then return end
-        
-        local count = tonumber(itemCountEdit.text) or 0
-        local sum = count * pricePerItem
-        local sumText = string.format("%.2f", sum)
-        local color = sum > currentBalance and 0xFF0000 or 0x00FF00
-        
-        -- Обновляем Сумма1
-        sumLabel1.text = "Сумма1: " .. sumText
-        sumLabel1.fontColor = color
-        gpu.setBackground(0x000000)
-        gpu.setForeground(color)
-        gpu.set(sumLabel1.left, sumLabel1.top, sumLabel1.text)
-        
-        -- Берем значение из Сумма1 для Сумма2
-        local sum1Value = sumLabel1.text:match("Сумма1: (.*)") or "0.00"
-        sumLabel2.text = "Сумма2: " .. sum1Value
-        sumLabel2.fontColor = color
-        gpu.setBackground(0x000000)
-        gpu.setForeground(color)
-        gpu.set(sumLabel2.left, sumLabel2.top, sumLabel2.text)
-    end
 
-    -- Обработчики событий
-    itemCountEdit.onInput = function(text)
-        updateSum()
-    end
-
-    itemCountEdit.onChange = function(text)
-        updateSum()
-    end
-
-    -- Таймер обновления
-    local updateTimer
-    if showCalculation then
-        updateTimer = itemCounterNumberForm:addTimer(0.2, updateSum)
-        if updateTimer then
-            pcall(function() updateTimer:start() end)
-        end
-    end
 
     -- Кнопки
     local backButton = itemCounterNumberForm:addButton(3, showCalculation and 10 or 8, " Назад ", function()
@@ -215,7 +169,6 @@ function createNumberEditForm(callback, form, buttonText, pricePerItem, currentB
     end)
 
     -- Первоначальное обновление
-    if showCalculation then updateSum() end
 
     return itemCounterNumberForm
 end
@@ -242,7 +195,7 @@ function createAutorizationForm()
     AutorizationForm:addLabel(22, 20, "███████║██║  ██║╚██████╔╝██║             ")
     AutorizationForm:addLabel(22, 21, "╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚═╝             ")
     
-    AutorizationForm:addLabel(22, 23, "     ↓  Встаньте на PIM 16   ↓       ")
+    AutorizationForm:addLabel(22, 23, "     ↓  Встаньте на PIM 17   ↓       ")
     authorLabel.fontColor = 0x00FDFF
 
     return AutorizationForm

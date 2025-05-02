@@ -158,7 +158,7 @@ function createNumberEditForm(callback, form, buttonText, pricePerItem, currentB
             local count = tonumber(itemCountEdit.text) or 0
             local sum = count * pricePerItem
             
-            sumLabel.text = "Сумма: " .. tostring(sum)
+            sumLabel.text = "Сумма: " .. string.format("%.2f", sum)
             
             if currentBalance and sum > currentBalance then
                 sumLabel.fontColor = 0xFF0000  -- Красный, если не хватает
@@ -166,7 +166,7 @@ function createNumberEditForm(callback, form, buttonText, pricePerItem, currentB
                 sumLabel.fontColor = 0x00FF00  -- Зеленый, если хватает
             end
             
-            -- Перерисовываем всю форму вместо вызова update
+            -- Перерисовываем всю форму
             itemCounterNumberForm:draw()
         end
         
@@ -495,7 +495,7 @@ function createSellShopSpecificForm(category)
                         createNotification(nil, message, nil, function()
                             createSellShopSpecificForm(category)
                         end)
-                    end, SellShopSpecificForm, "Купить", itemPrice, currentBalance, true)
+                    end, SellShopSpecificForm, "Купить", selectedItem.price, currentBalance, true)
                     itemCounterNumberSelectForm:setActive()
                 end
             end)

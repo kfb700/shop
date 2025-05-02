@@ -55,7 +55,6 @@ local function sendToDiscordDirect(message)
     return true, "Сообщение успешно отправлено"
 end
 
-
 function createSupportForm()
     local supportForm = forms:addForm()
     supportForm.border = 2
@@ -115,6 +114,7 @@ function createSupportForm()
     
     return supportForm
 end
+
 function createNotification(status, text, secondText, callback)
     local notificationForm = forms:addForm()
     notificationForm.border = 2
@@ -193,31 +193,29 @@ function createAutorizationForm()
     local AutorizationForm = forms.addForm() -- создаем основную форму
     AutorizationForm.border = 1
     
-
     local authorLabel = AutorizationForm:addLabel(32, 25, " Автор: hijabax ")
     authorLabel.fontColor = 0x00FDFF
 
-local nameLabel1 = AutorizationForm:addLabel(11, 3, " ____            _                     ")
-local nameLabel2 = AutorizationForm:addLabel(11, 4, "|  _ \\          | |                    ")
-local nameLabel3 = AutorizationForm:addLabel(11, 5, "| |_) |   ___   | |__     ___   _ __   ")
-local nameLabel4 = AutorizationForm:addLabel(11, 6, "|  _ <   / _ \\  | '_ \\   / _ \\ | '__|  ")
-local nameLabel5 = AutorizationForm:addLabel(11, 7, "| |_) | | (_) | | |_) | |  __/ | |     ")
-local nameLabel6 = AutorizationForm:addLabel(11, 8, "|____/   \\___/  |_.__/   \\___| |_|     ")
-local nameLabel7 = AutorizationForm:addLabel(11, 9, "  _____   _                            ")
-local nameLabel8 = AutorizationForm:addLabel(11, 10," / ____| | |                           ")
-local nameLabel9 = AutorizationForm:addLabel(11, 11,"| (___   | |__     ___    _ __         ")
-local nameLabel10 = AutorizationForm:addLabel(11, 12," \\___ \\  | '_ \\   / _ \\  | '_ \\       ")
-local nameLabel11 = AutorizationForm:addLabel(11, 13," ____) | | | | | | (_) | | |_) |      ")
-local nameLabel12 = AutorizationForm:addLabel(11, 14,"|_____/  |_| |_|  \\___/  | .__/       ")
-local nameLabel13 = AutorizationForm:addLabel(11, 15,"                         | |          ")
-local nameLabel14 = AutorizationForm:addLabel(11, 16,"                         |_|          ")
-local nameLabel15 = AutorizationForm:addLabel(11, 17,"                      ")
-local nameLabel15 = AutorizationForm:addLabel(11, 18,"            Встаньте на PIM          ")
+    local nameLabel1 = AutorizationForm:addLabel(11, 3, " ____            _                     ")
+    local nameLabel2 = AutorizationForm:addLabel(11, 4, "|  _ \\          | |                    ")
+    local nameLabel3 = AutorizationForm:addLabel(11, 5, "| |_) |   ___   | |__     ___   _ __   ")
+    local nameLabel4 = AutorizationForm:addLabel(11, 6, "|  _ <   / _ \\  | '_ \\   / _ \\ | '__|  ")
+    local nameLabel5 = AutorizationForm:addLabel(11, 7, "| |_) | | (_) | | |_) | |  __/ | |     ")
+    local nameLabel6 = AutorizationForm:addLabel(11, 8, "|____/   \\___/  |_.__/   \\___| |_|     ")
+    local nameLabel7 = AutorizationForm:addLabel(11, 9, "  _____   _                            ")
+    local nameLabel8 = AutorizationForm:addLabel(11, 10," / ____| | |                           ")
+    local nameLabel9 = AutorizationForm:addLabel(11, 11,"| (___   | |__     ___    _ __         ")
+    local nameLabel10 = AutorizationForm:addLabel(11, 12," \\___ \\  | '_ \\   / _ \\  | '_ \\       ")
+    local nameLabel11 = AutorizationForm:addLabel(11, 13," ____) | | | | | | (_) | | |_) |      ")
+    local nameLabel12 = AutorizationForm:addLabel(11, 14,"|_____/  |_| |_|  \\___/  | .__/       ")
+    local nameLabel13 = AutorizationForm:addLabel(11, 15,"                         | |          ")
+    local nameLabel14 = AutorizationForm:addLabel(11, 16,"                         |_|          ")
+    local nameLabel15 = AutorizationForm:addLabel(11, 17,"                      ")
+    local nameLabel15 = AutorizationForm:addLabel(11, 18,"            Встаньте на PIM          ")
     authorLabel.fontColor = 0x00FDFF
 
     return AutorizationForm
 end
-
 
 function createListForm(name, label, items, buttons, filter)
     local ShopForm = forms.addForm()
@@ -248,7 +246,6 @@ function createListForm(name, label, items, buttons, filter)
     local searchEdit = ShopForm:addEdit(3, 2)
     searchEdit.W = 15
 
-
     local searchButton = ShopForm:addButton(19, 3, " Поиск ", function()
         createListForm(name, label, items, buttons, searchEdit.text):setActive()
     end)
@@ -274,59 +271,47 @@ function createButton(buttonName, W, H, callback)
     return button
 end
 
-function createNumberEditForm(callback, form, buttonText, pricePerItem, currentBalance)
-    local itemCounterNumberForm = forms:addForm()
-    itemCounterNumberForm.border = 2
-    itemCounterNumberForm.W = 31
-    itemCounterNumberForm.H = 12
-    itemCounterNumberForm.left = math.floor((form.W - itemCounterNumberForm.W) / 2)
-    itemCounterNumberForm.top = math.floor((form.H - itemCounterNumberForm.H) / 2)
-    
-    -- Отображаем текущий баланс
-    itemCounterNumberForm:addLabel(8, 2, "Баланс: " .. currentBalance)
-    
-    -- Поле для ввода количества
-    itemCounterNumberForm:addLabel(8, 4, "Введите количество")
-    local itemCountEdit = itemCounterNumberForm:addEdit(8, 5)
-    itemCountEdit.W = 18
-    itemCountEdit.validator = function(value)
-        return tonumber(value) ~= nil
-    end
-    
-    -- Метка для отображения суммы покупки
-    local sumLabel = itemCounterNumberForm:addLabel(8, 7, "Сумма: 0")
-    
-    -- Функция для обновления суммы покупки
-    local function updateSum()
-        local count = tonumber(itemCountEdit.text) or 0
-        local sum = count * pricePerItem
-        sumLabel.text = "Сумма: " .. sum
-        
-        if sum > currentBalance then
-            sumLabel.fontColor = 0xFF0000
-        else
-            sumLabel.fontColor = 0xFFFFFF
+function createGarbageForm()
+    local items = shopService:getItems(nickname)
+    for i = 1, #items do
+        local name = items[i].label
+        for i = 1, 60 - unicode.len(name) do
+            name = name .. ' '
         end
-    end
-    
-    -- Обновляем сумму при изменении текста
-    itemCountEdit.onChange = function(text)
-        updateSum()
-    end
-    
-    -- Кнопки
-    local backButton = itemCounterNumberForm:addButton(3, 10, " Назад ", function()
-        form:setActive()
-    end)
+        name = name .. items[i].count .. " шт"
 
-    local acceptButton = itemCounterNumberForm:addButton(17, 10, buttonText, function()
-        callback(itemCountEdit.text and tonumber(itemCountEdit.text) or 0
-    end)
-    
-    -- Инициализация суммы при создании формы
-    updateSum()
-    
-    return itemCounterNumberForm
+        items[i].displayName = name
+    end
+
+    GarbageForm = createListForm(" Корзина ",
+        " Наименование                                                Количество",
+        items,
+        {
+            createButton(" Назад ", 4, 23, function(selectedItem)
+                MainForm = createMainForm(nickname)
+                MainForm:setActive()
+            end),
+            createButton(" Забрать все ", 68, 23, function(selectedItem)
+                local count, message = shopService:withdrawAll(nickname)
+                createNotification(count, message, nil, function()
+                    createGarbageForm()
+                end)
+            end),
+            createButton(" Забрать ", 55, 23, function(selectedItem)
+                if (selectedItem) then
+                    local NumberForm = createNumberEditForm(function(count)
+                        local count, message = shopService:withdrawItem(nickname, selectedItem.id, selectedItem.dmg, count)
+
+                        createNotification(count, message, nil, function()
+                            createGarbageForm()
+                        end)
+                    end, GarbageForm, "Забрать")
+                    NumberForm:setActive()
+                end
+            end)
+        })
+
+    GarbageForm:setActive()
 end
 
 function createMainForm(nick)
@@ -474,7 +459,6 @@ function createSellShopForm()
 
     SellShopForm:setActive()
 end
-
 
 function createSellShopSpecificForm(category)
     local items = shopService:getSellShopList(category)
@@ -713,7 +697,6 @@ end
 
 AutorizationForm = createAutorizationForm()
 RulesForm = createRulesForm()
-
 
 local Event1 = AutorizationForm:addEvent("player_on", function(e, p)
     gpu.setResolution(80, 25)

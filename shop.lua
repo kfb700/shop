@@ -140,42 +140,57 @@ function createNumberEditForm(callback, form, buttonText, pricePerItem, currentB
     itemCounterNumberForm.top = math.floor((form.H - itemCounterNumberForm.H) / 2)
 
     -- Элементы интерфейса
-    local balanceLabel, itemCountEdit, sumLabel
-    
-   
+    local balanceLabel, itemCountEdit, sumLabel1, sumLabel2
     
     itemCounterNumberForm:addLabel(8, 4, "Введите количество")
     itemCountEdit = itemCounterNumberForm:addEdit(8, 5)
     itemCountEdit.W = 18
     itemCountEdit.text = "1"  -- Начальное значение
 
-    -- Функция обновления суммы с защитой от ошибок
+    -- Инициализация элементов для отображения суммы
+    if showCalculation then
+        balanceLabel = itemCounterNumberForm:addLabel(8, 2, "Баланс: " .. string.format("%.2f", currentBalance))
+        balanceLabel.fontColor = 0xFFFFFF
+        
+        sumLabel1 = itemCounterNumberForm:addLabel(8, 7, "Сумма1: 0.00")
+        sumLabel1.fontColor = 0x00FF00
+        
+        sumLabel2 = itemCounterNumberForm:addLabel(8, 8, "Сумма2: 0.00")
+        sumLabel2.fontColor = 0x00FF00
+    end
+
+    -- Функция обновления суммы
     local function updateSum()
-        if not showCalculation or not sumLabel then return end
+        if not showCalculation then return end
         
         local count = tonumber(itemCountEdit.text) or 0
         local sum = count * pricePerItem
+        local sumText = string.format("%.2f", sum)
+        local color = sum > currentBalance and 0xFF0000 or 0x00FF00
         
-        sumLabel.text = "Сумма: " .. string.format("%.2f", sum)
-        sumLabel.fontColor = sum > currentBalance and 0xFF0000 or 0x00FF00
+        -- Обновляем обе суммы
+        if sumLabel1 then
+            sumLabel1.text = "Сумма1: " .. sumText
+            sumLabel1.fontColor = color
+            gpu.setBackground(0x000000)
+            gpu.setForeground(color)
+            gpu.set(sumLabel1.left, sumLabel1.top, sumLabel1.text)
+        end
         
-        -- Принудительное обновление
-        gpu.setBackground(0x000000)
-        gpu.setForeground(sumLabel.fontColor)
-        gpu.set(sumLabel.left, sumLabel.top, sumLabel.text)
+        if sumLabel2 then
+            sumLabel2.text = "Сумма2: " .. sumText
+            sumLabel2.fontColor = color
+            gpu.setBackground(0x000000)
+            gpu.setForeground(color)
+            gpu.set(sumLabel2.left, sumLabel2.top, sumLabel2.text)
+        end
     end
 
     -- Обработчики событий
     itemCountEdit.onInput = function(text)
         updateSum()
     end
-    if showCalculation then
-        balanceLabel = itemCounterNumberForm:addLabel(8, 2, "Баланс: " .. string.format("%.2f", currentBalance))
-        balanceLabel.fontColor = 0xFFFFFF
-        
-        sumLabel = itemCounterNumberForm:addLabel(8, 8, "Сумма2:", sum)
-        sumLabel.fontColor = sum > currentBalance and 0xFF0000 or 0x00FF00
-    end
+
     itemCountEdit.onChange = function(text)
         updateSum()
     end
@@ -185,7 +200,7 @@ function createNumberEditForm(callback, form, buttonText, pricePerItem, currentB
     if showCalculation then
         updateTimer = itemCounterNumberForm:addTimer(0.2, updateSum)
         if updateTimer then
-            pcall(function() updateTimer:start() end)  -- Защищенный вызов
+            pcall(function() updateTimer:start() end)
         end
     end
 
@@ -198,7 +213,7 @@ function createNumberEditForm(callback, form, buttonText, pricePerItem, currentB
     local acceptButton = itemCounterNumberForm:addButton(17, showCalculation and 10 or 8, buttonText or "Принять", function()
         if updateTimer then pcall(function() updateTimer:stop() end) end
         local count = math.floor(tonumber(itemCountEdit.text) or 1)
-        if callback then callback(math.max(1, count)) end  -- Минимум 1 предмет
+        if callback then callback(math.max(1, count)) end
     end)
 
     -- Первоначальное обновление
@@ -229,7 +244,7 @@ function createAutorizationForm()
     AutorizationForm:addLabel(22, 20, "███████║██║  ██║╚██████╔╝██║             ")
     AutorizationForm:addLabel(22, 21, "╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚═╝             ")
     
-    AutorizationForm:addLabel(22, 23, "     ↓  Встаньте на PIM 141   ↓       ")
+    AutorizationForm:addLabel(22, 23, "     ↓  Встаньте на PIM 15   ↓       ")
     authorLabel.fontColor = 0x00FDFF
 
     return AutorizationForm

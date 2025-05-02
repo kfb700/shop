@@ -164,11 +164,13 @@ function createNumberEditForm(callback, form, buttonText, pricePerItem, currentB
         local count = tonumber(itemCountEdit.text) or 0
         local sum = count * pricePerItem
         
+        -- Обновляем только текст метки, позиция остается (8, 7)
         sumLabel.text = "Сумма: " .. string.format("%.2f", sum)
         sumLabel.fontColor = sum > currentBalance and 0xFF0000 or 0x00FF00
         
-        -- Принудительное обновление
+        -- Принудительное обновление (если нужно)
         gpu.setBackground(0x000000)
+        gpu.fill(sumLabel.left, sumLabel.top, unicode.len(sumLabel.text), 1, " ")
         gpu.setForeground(sumLabel.fontColor)
         gpu.set(sumLabel.left, sumLabel.top, sumLabel.text)
     end

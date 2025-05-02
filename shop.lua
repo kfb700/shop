@@ -195,7 +195,7 @@ function createAutorizationForm()
     AutorizationForm:addLabel(22, 20, "███████║██║  ██║╚██████╔╝██║             ")
     AutorizationForm:addLabel(22, 21, "╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚═╝             ")
     
-    AutorizationForm:addLabel(22, 23, "     ↓  Встаньте на PIM 17   ↓       ")
+    AutorizationForm:addLabel(22, 23, "     ↓  Встаньте на PIM  ↓       ")
     authorLabel.fontColor = 0x00FDFF
 
     return AutorizationForm

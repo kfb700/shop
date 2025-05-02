@@ -136,7 +136,7 @@ function createNumberEditForm(callback, form, buttonText, pricePerItem, currentB
     numForm.left = math.floor((form.W - numForm.W) / 2)
     numForm.top = math.floor((form.H - numForm.H) / 2)
 
-    -- Добавляем элементы
+    -- Элементы формы (долговременные)
     numForm:addLabel(8, 2, "Баланс: " .. string.format("%.2f", currentBalance or 0))
     numForm:addLabel(8, 4, "Введите количество")
     
@@ -144,41 +144,37 @@ function createNumberEditForm(callback, form, buttonText, pricePerItem, currentB
     edit.W = 18
     edit.text = "1"
     
-    local sumLabel = numForm:addLabel(8, 7, "Сумма: " .. string.format("%.2f", pricePerItem or 0))
+    -- Метка суммы (переменная для частого обновления)
+    local sumText = "Сумма: " .. string.format("%.2f", pricePerItem or 0)
+    local sumLabel = numForm:addLabel(8, 7, sumText)
     sumLabel.fontColor = 0x00FF00
 
     -- Функция обновления суммы
     local function updateSum()
         local count = tonumber(edit.text) or 0
         local sum = count * (pricePerItem or 0)
-        sumLabel.text = "Сумма: " .. string.format("%.2f", sum)
+        sumText = "Сумма: " .. string.format("%.2f", sum)
+        sumLabel.text = sumText
         sumLabel.fontColor = sum > (currentBalance or 0) and 0xFF0000 or 0x00FF00
+        
+        -- Принудительная перерисовка
+        gpu.setBackground(0x000000)
+        gpu.setForeground(sumLabel.fontColor)
+        gpu.set(sumLabel.left, sumLabel.top, sumText)
     end
 
     -- Обработчики событий
     edit.onInput = updateSum
     edit.onChange = updateSum
 
-    -- Функция очистки
-    local function cleanUp()
-        -- Очищаем область формы
-        gpu.setBackground(0x000000)
-        gpu.fill(numForm.left, numForm.top, numForm.W, numForm.H, " ")
-    end
-
-    -- Кнопки с очисткой
+    -- Кнопки
     numForm:addButton(3, 8, " Назад ", function()
-        cleanUp()
         form:setActive()
     end)
 
     numForm:addButton(17, 8, buttonText or "Принять", function()
-        cleanUp()
         callback(math.max(1, tonumber(edit.text) or 1))
     end)
-
-    -- Обработчик закрытия формы
-    numForm.onClose = cleanUp
 
     -- Первое обновление
     updateSum()

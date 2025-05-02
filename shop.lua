@@ -717,6 +717,6 @@ local Event1 = AutorizationForm:addEvent("player_off", function(e, p)
         timer:stop()
     end
     AutorizationForm:setActive()
-end
+end)
 
 forms.run(AutorizationForm)

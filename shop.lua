@@ -142,13 +142,7 @@ function createNumberEditForm(callback, form, buttonText, pricePerItem, currentB
     -- Элементы интерфейса
     local balanceLabel, itemCountEdit, sumLabel
     
-    if showCalculation then
-        balanceLabel = itemCounterNumberForm:addLabel(8, 2, "Баланс: " .. string.format("%.2f", currentBalance))
-        balanceLabel.fontColor = 0xFFFFFF
-        
-        sumLabel = itemCounterNumberForm:addLabel(8, 8, "Сумма: 0.00")
-        sumLabel.fontColor = 0x00FF00
-    end
+   
     
     itemCounterNumberForm:addLabel(8, 4, "Введите количество")
     itemCountEdit = itemCounterNumberForm:addEdit(8, 5)
@@ -175,7 +169,13 @@ function createNumberEditForm(callback, form, buttonText, pricePerItem, currentB
     itemCountEdit.onInput = function(text)
         updateSum()
     end
-
+    if showCalculation then
+        balanceLabel = itemCounterNumberForm:addLabel(8, 2, "Баланс: " .. string.format("%.2f", currentBalance))
+        balanceLabel.fontColor = 0xFFFFFF
+        
+        sumLabel = itemCounterNumberForm:addLabel(8, 8, "Сумма2:", sum)
+        sumLabel.fontColor = sum > currentBalance and 0xFF0000 or 0x00FF00
+    end
     itemCountEdit.onChange = function(text)
         updateSum()
     end
@@ -229,7 +229,7 @@ function createAutorizationForm()
     AutorizationForm:addLabel(22, 20, "███████║██║  ██║╚██████╔╝██║             ")
     AutorizationForm:addLabel(22, 21, "╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚═╝             ")
     
-    AutorizationForm:addLabel(22, 23, "     ↓  Встаньте на PIM 13   ↓       ")
+    AutorizationForm:addLabel(22, 23, "     ↓  Встаньте на PIM 14   ↓       ")
     authorLabel.fontColor = 0x00FDFF
 
     return AutorizationForm

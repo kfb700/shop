@@ -294,6 +294,7 @@ function createMainForm(nick)
 
     -- Размеры экрана
     local screenWidth = 80
+    local centerX = screenWidth / 2  -- Центр экрана
 
     -- Информация о пользователе
     MainForm:addLabel(5, 6, "Ваш ник: ").fontSize = 1.2
@@ -308,14 +309,10 @@ function createMainForm(nick)
     local buttonHeight = 3
     local largeButtonWidth = 34
     local smallButtonWidth = 22
-    
-    -- Позиционирование
-    local startX = 5
-    local endX = 75
-    local buttonSpacing = 8  -- Отступ между кнопками
+    local buttonSpacing = 10  -- Отступ между кнопками
 
     -- Первый ряд кнопок (КУПИТЬ и ПРОДАТЬ)
-    local buyButton = MainForm:addButton(startX, 12, " КУПИТЬ ", function()
+    local buyButton = MainForm:addButton(centerX - largeButtonWidth - buttonSpacing/2, 12, " КУПИТЬ ", function()
         createSellShopForm()
     end)
     buyButton.H = buttonHeight
@@ -323,7 +320,7 @@ function createMainForm(nick)
     buyButton.color = 0x006600
     buyButton.fontColor = 0xFFFFFF
 
-    local sellButton = MainForm:addButton(endX - largeButtonWidth, 12, " ПРОДАТЬ ", function()
+    local sellButton = MainForm:addButton(centerX + buttonSpacing/2, 12, " ПРОДАТЬ ", function()
         createBuyShopForm()
     end)
     sellButton.H = buttonHeight
@@ -331,18 +328,9 @@ function createMainForm(nick)
     sellButton.color = 0xFFA500
     sellButton.fontColor = 0xFFFFFF
 
-    -- Второй ряд кнопок (3 кнопки с равными отступами)
-    -- СВЯЗАТЬСЯ С НАМИ (левая кнопка)
-    local supportButton = MainForm:addButton(startX, 17, " СВЯЗАТЬСЯ С НАМИ ", function()
-        createSupportForm():setActive()
-    end)
-    supportButton.H = buttonHeight
-    supportButton.W = smallButtonWidth
-    supportButton.color = 0x5555FF
-    supportButton.fontColor = 0xFFFFFF
-
+    -- Второй ряд кнопок (центрированные)
     -- ПРАВИЛА (центральная кнопка)
-    local rulesButton = MainForm:addButton(startX + smallButtonWidth + buttonSpacing -7, 17, " ПРАВИЛА ", function()
+    local rulesButton = MainForm:addButton(centerX - smallButtonWidth/2, 17, " ПРАВИЛА ", function()
         RulesForm:setActive()
     end)
     rulesButton.H = buttonHeight
@@ -350,8 +338,17 @@ function createMainForm(nick)
     rulesButton.color = 0x333333
     rulesButton.fontColor = 0xFF8F00
 
-    -- ВЫХОД (правая кнопка)
-    local exitButton = MainForm:addButton(endX - smallButtonWidth, 17, " ВЫХОД ", function()
+    -- СВЯЗАТЬСЯ С НАМИ (слева от ПРАВИЛА)
+    local supportButton = MainForm:addButton(centerX - smallButtonWidth - buttonSpacing - smallButtonWidth/2, 17, " СВЯЗАТЬСЯ С НАМИ ", function()
+        createSupportForm():setActive()
+    end)
+    supportButton.H = buttonHeight
+    supportButton.W = smallButtonWidth
+    supportButton.color = 0x5555FF
+    supportButton.fontColor = 0xFFFFFF
+
+    -- ВЫХОД (справа от ПРАВИЛА)
+    local exitButton = MainForm:addButton(centerX + smallButtonWidth/2 + buttonSpacing, 17, " ВЫХОД ", function()
         AutorizationForm:setActive()
     end)
     exitButton.H = buttonHeight

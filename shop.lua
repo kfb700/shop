@@ -309,32 +309,52 @@ function createMainForm(nick)
     local smallButtonWidth = 22
 
     -- Первый ряд кнопок (КУПИТЬ и ПРОДАТЬ)
-    MainForm:addButton(edgeMargin, 12, " КУПИТЬ ", function()
+    local buyButton = MainForm:addButton(edgeMargin, 12, " КУПИТЬ ", function()
         createSellShopForm()
-    end).H, .W, .color, .fontColor = buttonHeight, largeButtonWidth, 0x006600, 0xFFFFFF
+    end)
+    buyButton.H = buttonHeight
+    buyButton.W = largeButtonWidth
+    buyButton.color = 0x006600
+    buyButton.fontColor = 0xFFFFFF
 
-    MainForm:addButton(screenWidth - edgeMargin - largeButtonWidth, 12, " ПРОДАТЬ ", function()
+    local sellButton = MainForm:addButton(screenWidth - edgeMargin - largeButtonWidth, 12, " ПРОДАТЬ ", function()
         createBuyShopForm()
-    end).H, .W, .color, .fontColor = buttonHeight, largeButtonWidth, 0xFFA500, 0xFFFFFF
+    end)
+    sellButton.H = buttonHeight
+    sellButton.W = largeButtonWidth
+    sellButton.color = 0xFFA500
+    sellButton.fontColor = 0xFFFFFF
 
     -- Второй ряд кнопок (3 кнопки)
     local totalWidth = 3 * smallButtonWidth + 2 * buttonSpacing
     local startX = (screenWidth - totalWidth) / 2  -- Центрирование группы кнопок
 
     -- СВЯЗАТЬСЯ С НАМИ
-    MainForm:addButton(startX, 17, " СВЯЗАТЬСЯ С НАМИ ", function()
+    local supportButton = MainForm:addButton(startX, 17, " СВЯЗАТЬСЯ С НАМИ ", function()
         createSupportForm():setActive()
-    end).H, .W, .color, .fontColor = buttonHeight, smallButtonWidth, 0x5555FF, 0xFFFFFF
+    end)
+    supportButton.H = buttonHeight
+    supportButton.W = smallButtonWidth
+    supportButton.color = 0x5555FF
+    supportButton.fontColor = 0xFFFFFF
 
     -- ПРАВИЛА
-    MainForm:addButton(startX + smallButtonWidth + buttonSpacing, 17, " ПРАВИЛА ", function()
+    local rulesButton = MainForm:addButton(startX + smallButtonWidth + buttonSpacing, 17, " ПРАВИЛА ", function()
         RulesForm:setActive()
-    end).H, .W, .color, .fontColor = buttonHeight, smallButtonWidth, 0x333333, 0xFF8F00
+    end)
+    rulesButton.H = buttonHeight
+    rulesButton.W = smallButtonWidth
+    rulesButton.color = 0x333333
+    rulesButton.fontColor = 0xFF8F00
 
     -- ВЫХОД
-    MainForm:addButton(startX + 2*(smallButtonWidth + buttonSpacing), 17, " ВЫХОД ", function()
+    local exitButton = MainForm:addButton(startX + 2*(smallButtonWidth + buttonSpacing), 17, " ВЫХОД ", function()
         AutorizationForm:setActive()
-    end).H, .W, .color, .fontColor = buttonHeight, smallButtonWidth, 0xFF5555, 0xFFFFFF
+    end)
+    exitButton.H = buttonHeight
+    exitButton.W = smallButtonWidth
+    exitButton.color = 0xFF5555
+    exitButton.fontColor = 0xFFFFFF
 
     return MainForm
 end

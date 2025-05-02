@@ -128,7 +128,7 @@ function createNotification(status, text, secondText, callback)
 end
 
 function createNumberEditForm(callback, form, buttonText, pricePerItem, currentBalance, showCalculation)
-    -- Проверка и инициализация цены
+    -- Проверка и инициализация параметров
     pricePerItem = tonumber(pricePerItem) or 0
     currentBalance = tonumber(currentBalance) or 0
 
@@ -139,9 +139,8 @@ function createNumberEditForm(callback, form, buttonText, pricePerItem, currentB
     itemCounterNumberForm.left = math.floor((form.W - itemCounterNumberForm.W) / 2)
     itemCounterNumberForm.top = math.floor((form.H - itemCounterNumberForm.H) / 2)
 
-    -- Элементы интерфейса
+    -- Инициализация элементов формы
     local balanceLabel, itemCountEdit, sumLabel
-    local sumLabelX, sumLabelY  -- Сохраняем координаты метки суммы
     
     if showCalculation then
         balanceLabel = itemCounterNumberForm:addLabel(8, 2, "Баланс: " .. string.format("%.2f", currentBalance))
@@ -156,61 +155,66 @@ function createNumberEditForm(callback, form, buttonText, pricePerItem, currentB
     if showCalculation then
         sumLabel = itemCounterNumberForm:addLabel(8, 7, "Сумма: " .. string.format("%.2f", pricePerItem))
         sumLabel.fontColor = 0x00FF00
-        sumLabelX, sumLabelY = sumLabel.left, sumLabel.top  -- Запоминаем координаты
     end
 
-    -- Функция обновления суммы
+    -- Функция обновления суммы с защитой от nil-значений
     local function updateSum()
-        if not showCalculation then return end
+        if not showCalculation or not sumLabel or not sumLabel.X then return end
         
         local count = tonumber(itemCountEdit.text) or 0
         local sum = count * pricePerItem
         
         sumLabel.text = "Сумма: " .. string.format("%.2f", sum)
         sumLabel.fontColor = sum > currentBalance and 0xFF0000 or 0x00FF00
-        sumLabel:draw()  -- Используем встроенный метод вместо gpu.set
+        
+        -- Безопасная отрисовка
+        if sumLabel and sumLabel.X and sumLabel.Y then
+            gpu.setBackground(0x000000)
+            gpu.setForeground(sumLabel.fontColor)
+            gpu.set(sumLabel.X, sumLabel.Y, sumLabel.text)
+        end
     end
 
-    -- Обработчики событий
-    itemCountEdit.onInput = updateSum
-    itemCountEdit.onChange = updateSum
+    -- Обработчики событий с проверкой инициализации
+    itemCountEdit.onInput = function(text)
+        if itemCountEdit and itemCountEdit.X then
+            updateSum()
+        end
+    end
 
-    -- Таймер обновления
+    itemCountEdit.onChange = function(text)
+        if itemCountEdit and itemCountEdit.X then
+            updateSum()
+        end
+    end
+
+    -- Таймер с защитой от ошибок
     local updateTimer
     if showCalculation then
-        updateTimer = itemCounterNumberForm:addTimer(0.5, updateSum)
+        updateTimer = itemCounterNumberForm:addTimer(0.5, function()
+            if itemCounterNumberForm and itemCounterNumberForm.X then
+                updateSum()
+            end
+        end)
         if updateTimer then
             pcall(function() updateTimer:start() end)
         end
     end
 
-    -- Функция очистки
-    local function cleanUp()
-        if showCalculation and sumLabelX and sumLabelY then
-            -- Очищаем область суммы
-            gpu.setBackground(0x000000)
-            gpu.fill(sumLabelX, sumLabelY, unicode.len(sumLabel.text), 1, " ")
-        end
-    end
-
-    -- Кнопки
+    -- Кнопки с очисткой
     local backButton = itemCounterNumberForm:addButton(3, showCalculation and 10 or 8, " Назад ", function()
         if updateTimer then pcall(function() updateTimer:stop() end) end
-        cleanUp()
         form:setActive()
     end)
 
     local acceptButton = itemCounterNumberForm:addButton(17, showCalculation and 10 or 8, buttonText or "Принять", function()
         if updateTimer then pcall(function() updateTimer:stop() end) end
         local count = math.floor(tonumber(itemCountEdit.text) or 1)
-        cleanUp()
         callback(math.max(1, count))
     end)
 
-    -- Обработчик закрытия формы
-    itemCounterNumberForm.onClose = cleanUp
-
-    -- Первоначальное обновление
+    -- Принудительная инициализация координат перед первым обновлением
+    itemCounterNumberForm:draw()
     if showCalculation then updateSum() end
 
     return itemCounterNumberForm

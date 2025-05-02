@@ -274,47 +274,59 @@ function createButton(buttonName, W, H, callback)
     return button
 end
 
-function createGarbageForm()
-    local items = shopService:getItems(nickname)
-    for i = 1, #items do
-        local name = items[i].label
-        for i = 1, 60 - unicode.len(name) do
-            name = name .. ' '
-        end
-        name = name .. items[i].count .. " шт"
-
-        items[i].displayName = name
+function createNumberEditForm(callback, form, buttonText, pricePerItem, currentBalance)
+    local itemCounterNumberForm = forms:addForm()
+    itemCounterNumberForm.border = 2
+    itemCounterNumberForm.W = 31
+    itemCounterNumberForm.H = 12
+    itemCounterNumberForm.left = math.floor((form.W - itemCounterNumberForm.W) / 2)
+    itemCounterNumberForm.top = math.floor((form.H - itemCounterNumberForm.H) / 2)
+    
+    -- Отображаем текущий баланс
+    itemCounterNumberForm:addLabel(8, 2, "Баланс: " .. currentBalance)
+    
+    -- Поле для ввода количества
+    itemCounterNumberForm:addLabel(8, 4, "Введите количество")
+    local itemCountEdit = itemCounterNumberForm:addEdit(8, 5)
+    itemCountEdit.W = 18
+    itemCountEdit.validator = function(value)
+        return tonumber(value) ~= nil
     end
+    
+    -- Метка для отображения суммы покупки
+    local sumLabel = itemCounterNumberForm:addLabel(8, 7, "Сумма: 0")
+    
+    -- Функция для обновления суммы покупки
+    local function updateSum()
+        local count = tonumber(itemCountEdit.text) or 0
+        local sum = count * pricePerItem
+        sumLabel.text = "Сумма: " .. sum
+        
+        if sum > currentBalance then
+            sumLabel.fontColor = 0xFF0000
+        else
+            sumLabel.fontColor = 0xFFFFFF
+        end
+    end
+    
+    -- Обновляем сумму при изменении текста
+    itemCountEdit.onChange = function(text)
+        updateSum()
+    end
+    
+    -- Кнопки
+    local backButton = itemCounterNumberForm:addButton(3, 10, " Назад ", function()
+        form:setActive()
+    end)
 
-    GarbageForm = createListForm(" Корзина ",
-        " Наименование                                                Количество",
-        items,
-        {
-            createButton(" Назад ", 4, 23, function(selectedItem)
-                MainForm = createMainForm(nickname)
-                MainForm:setActive()
-            end),
-            createButton(" Забрать все ", 68, 23, function(selectedItem)
-                local count, message = shopService:withdrawAll(nickname)
-                createNotification(count, message, nil, function()
-                    createGarbageForm()
-                end)
-            end),
-            createButton(" Забрать ", 55, 23, function(selectedItem)
-                if (selectedItem) then
-                    local NumberForm = createNumberEditForm(function(count)
-                        local count, message = shopService:withdrawItem(nickname, selectedItem.id, selectedItem.dmg, count)
-
-                        createNotification(count, message, nil, function()
-                            createGarbageForm()
-                        end)
-                    end, GarbageForm, "Забрать")
-                    NumberForm:setActive()
-                end
-            end)
-        })
-
-    GarbageForm:setActive()
+    local acceptButton = itemCounterNumberForm:addButton(17, 10, buttonText, function()
+        callback(itemCountEdit.text and tonumber(itemCountEdit.text) or 0
+    end)
+    
+    -- Инициализация суммы при создании формы
+    updateSum()
+    
+    return itemCounterNumberForm
 end
 
 function createMainForm(nick)

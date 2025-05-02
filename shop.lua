@@ -164,7 +164,8 @@ function createNumberEditForm(callback, form, buttonText, pricePerItem, currentB
         local count = tonumber(itemCountEdit.text) or 0
         local sum = count * pricePerItem
         
-        sumLabel.text = "Сумма: " .. string.format("%.2f", sum)
+        sumLabel.text = itemSumForm:addLabel(8, 8, "Сумма: " .. string.format("%.2f", sum))
+    --- sumLabel.text = "Сумма: " .. string.format("%.2f", sum)
         sumLabel.fontColor = sum > currentBalance and 0xFF0000 or 0x00FF00
         
         -- Принудительное обновление

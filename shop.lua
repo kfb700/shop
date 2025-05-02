@@ -155,7 +155,7 @@ function createNumberEditForm(callback, parentForm, buttonText, pricePerItem, cu
     local sumLabel
     if showCalculation then
         local sumText = "Сумма: " .. string.format("%.2f", pricePerItem)
-        sumLabel = numForm:addLabel(math.floor((numForm.W - unicode.len(sumText)) / 2, 7, sumText)
+        sumLabel = numForm:addLabel(math.floor((numForm.W - unicode.len(sumText)) / 2), 7, sumText)
         sumLabel.fontColor = 0x00FF00
     end
 

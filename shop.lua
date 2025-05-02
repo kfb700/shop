@@ -152,23 +152,17 @@ function createNumberEditForm(callback, form, buttonText, pricePerItem, currentB
         sumLabel.fontColor = 0xFFFFFF
         
         -- Функция для обновления суммы (объявлена заранее)
-        local updateSum = function()
+        local function updateSum()
             local count = tonumber(itemCountEdit.text) or 0
             local sum = count * pricePerItem
             
-            -- Обновляем текст метки суммы
             sumLabel.text = "Сумма: " .. string.format("%.2f", sum)
+            sumLabel.fontColor = (currentBalance and sum > currentBalance) and 0xFF0000 or 0x00FF00
             
-            -- Меняем цвет в зависимости от баланса
-            if currentBalance and sum > currentBalance then
-                sumLabel.fontColor = 0xFF0000  -- Красный
-            else
-                sumLabel.fontColor = 0x00FF00  -- Зеленый
-            end
-            
-            -- Принудительно обновляем только нужные элементы
-            sumLabel:draw()
-            balanceLabel:draw()
+            -- Перерисовываем только измененные элементы
+            gpu.setBackground(0x000000)
+            gpu.setForeground(sumLabel.fontColor)
+            gpu.set(sumLabel.left, sumLabel.top, sumLabel.text)
         end
         
         -- Настраиваем обработчик изменений

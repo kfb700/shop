@@ -136,7 +136,7 @@ function createNumberEditForm(callback, form, buttonText, pricePerItem, currentB
     numForm.left = math.floor((form.W - numForm.W) / 2)
     numForm.top = math.floor((form.H - numForm.H) / 2)
 
-    -- Элементы формы (долговременные)
+    -- Основные элементы
     numForm:addLabel(8, 2, "Баланс: " .. string.format("%.2f", currentBalance or 0))
     numForm:addLabel(8, 4, "Введите количество")
     
@@ -144,37 +144,46 @@ function createNumberEditForm(callback, form, buttonText, pricePerItem, currentB
     edit.W = 18
     edit.text = "1"
     
-    -- Метка суммы (переменная для частого обновления)
-    local sumText = "Сумма: " .. string.format("%.2f", pricePerItem or 0)
-    local sumLabel = numForm:addLabel(8, 7, sumText)
+    -- Единственная метка суммы
+    local sumLabel = numForm:addLabel(8, 7, "Сумма: " .. string.format("%.2f", pricePerItem or 0))
     sumLabel.fontColor = 0x00FF00
 
     -- Функция обновления суммы
     local function updateSum()
         local count = tonumber(edit.text) or 0
         local sum = count * (pricePerItem or 0)
-        sumText = "Сумма: " .. string.format("%.2f", sum)
-        sumLabel.text = sumText
+        sumLabel.text = "Сумма: " .. string.format("%.2f", sum)
         sumLabel.fontColor = sum > (currentBalance or 0) and 0xFF0000 or 0x00FF00
-        
-        -- Принудительная перерисовка
-        gpu.setBackground(0x000000)
-        gpu.setForeground(sumLabel.fontColor)
-        gpu.set(sumLabel.left, sumLabel.top, sumText)
+        sumLabel:draw()  -- Гарантированная отрисовка
     end
 
-    -- Обработчики событий
+    -- Обработчики ввода
     edit.onInput = updateSum
     edit.onChange = updateSum
 
-    -- Кнопки
+    -- Таймер обновления (300 мс)
+    local updateTimer = numForm:addTimer(0.3, function()
+        if numForm and numForm.X then  -- Проверка что форма еще существует
+            updateSum()
+        end
+    end)
+    updateTimer:start()
+
+    -- Кнопки с остановкой таймера
     numForm:addButton(3, 8, " Назад ", function()
+        updateTimer:stop()
         form:setActive()
     end)
 
     numForm:addButton(17, 8, buttonText or "Принять", function()
+        updateTimer:stop()
         callback(math.max(1, tonumber(edit.text) or 1))
     end)
+
+    -- Очистка при закрытии
+    numForm.onClose = function()
+        if updateTimer then updateTimer:stop() end
+    end
 
     -- Первое обновление
     updateSum()

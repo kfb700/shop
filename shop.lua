@@ -147,7 +147,7 @@ function createNumberEditForm(callback, form, buttonText, pricePerItem, currentB
     itemCountEdit.W = 18
     itemCountEdit.text = "1"  -- Начальное значение
 
-    -- Инициализация элементов для отображения суммы
+    -- Инициализация элементов
     if showCalculation then
         balanceLabel = itemCounterNumberForm:addLabel(8, 2, "Баланс: " .. string.format("%.2f", currentBalance))
         balanceLabel.fontColor = 0xFFFFFF
@@ -155,7 +155,7 @@ function createNumberEditForm(callback, form, buttonText, pricePerItem, currentB
         sumLabel1 = itemCounterNumberForm:addLabel(8, 7, "Сумма1: 0.00")
         sumLabel1.fontColor = 0x00FF00
         
-        sumLabel2 = itemCounterNumberForm:addLabel(8, 8, "Сумма2: 0.00")
+        sumLabel2 = itemCounterNumberForm:addLabel(8, 8, "Сумма2: ")
         sumLabel2.fontColor = 0x00FF00
     end
 
@@ -168,22 +168,20 @@ function createNumberEditForm(callback, form, buttonText, pricePerItem, currentB
         local sumText = string.format("%.2f", sum)
         local color = sum > currentBalance and 0xFF0000 or 0x00FF00
         
-        -- Обновляем обе суммы
-        if sumLabel1 then
-            sumLabel1.text = "Сумма1: " .. sumText
-            sumLabel1.fontColor = color
-            gpu.setBackground(0x000000)
-            gpu.setForeground(color)
-            gpu.set(sumLabel1.left, sumLabel1.top, sumLabel1.text)
-        end
+        -- Обновляем Сумма1
+        sumLabel1.text = "Сумма1: " .. sumText
+        sumLabel1.fontColor = color
+        gpu.setBackground(0x000000)
+        gpu.setForeground(color)
+        gpu.set(sumLabel1.left, sumLabel1.top, sumLabel1.text)
         
-        if sumLabel2 then
-            sumLabel2.text = "Сумма2: " .. sumText
-            sumLabel2.fontColor = color
-            gpu.setBackground(0x000000)
-            gpu.setForeground(color)
-            gpu.set(sumLabel2.left, sumLabel2.top, sumLabel2.text)
-        end
+        -- Берем значение из Сумма1 для Сумма2
+        local sum1Value = sumLabel1.text:match("Сумма1: (.*)") or "0.00"
+        sumLabel2.text = "Сумма2: " .. sum1Value
+        sumLabel2.fontColor = color
+        gpu.setBackground(0x000000)
+        gpu.setForeground(color)
+        gpu.set(sumLabel2.left, sumLabel2.top, sumLabel2.text)
     end
 
     -- Обработчики событий
@@ -195,7 +193,7 @@ function createNumberEditForm(callback, form, buttonText, pricePerItem, currentB
         updateSum()
     end
 
-    -- Таймер обновления (если нужно)
+    -- Таймер обновления
     local updateTimer
     if showCalculation then
         updateTimer = itemCounterNumberForm:addTimer(0.2, updateSum)
@@ -244,7 +242,7 @@ function createAutorizationForm()
     AutorizationForm:addLabel(22, 20, "███████║██║  ██║╚██████╔╝██║             ")
     AutorizationForm:addLabel(22, 21, "╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚═╝             ")
     
-    AutorizationForm:addLabel(22, 23, "     ↓  Встаньте на PIM 15   ↓       ")
+    AutorizationForm:addLabel(22, 23, "     ↓  Встаньте на PIM 16   ↓       ")
     authorLabel.fontColor = 0x00FDFF
 
     return AutorizationForm

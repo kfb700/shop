@@ -185,7 +185,7 @@ function createNumberEditForm(callback, form, buttonText, pricePerItem, currentB
     -- Таймер обновления (если нужно)
     local updateTimer
     if showCalculation then
-        updateTimer = itemCounterNumberForm:addTimer(0.5, updateSum)
+        updateTimer = itemCounterNumberForm:addTimer(0.2, updateSum)
         if updateTimer then
             pcall(function() updateTimer:start() end)  -- Защищенный вызов
         end

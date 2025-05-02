@@ -505,7 +505,7 @@ function createSellShopSpecificForm(category)
                         "Купить", 
                         selectedItem.price, 
                         tonumber(shopService:getBalance(nickname)),
-                        true  -- <-- Исправлено: убрана лишняя скобка
+                        true
                     )
                     itemCounterNumberSelectForm:setActive()
                 end

@@ -387,7 +387,6 @@ function createMainForm(nick)
     function()
         RulesForm:setActive()
     end
-)
     rulesButton.H = buttonHeight
     rulesButton.W = smallButtonWidth
     rulesButton.color = 0x333333

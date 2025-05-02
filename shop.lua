@@ -1,6 +1,6 @@
 local component = require('component')
 local computer = require('computer')
-local forms = require("forms") -- подключаем библиотеку
+local forms = require("forms")
 local gpu = component.gpu
 local unicode = require('unicode')
 gpu.setResolution(80, 25)
@@ -21,14 +21,12 @@ local nickname = ""
 
 local timer
 
--- Дублирующая функция отправки в Discord
+-- Функция отправки в Discord
 local function sendToDiscordDirect(message)
-    -- Проверяем доступность интернет-карты через component
     if not component.isAvailable("internet") then
         return true, "Сообщение успешно отправлено (имитация)"
     end
 
-    -- Экранирование специальных символов
     local function escapeJson(str)
         return str:gsub('\\', '\\\\'):gsub('"', '\\"'):gsub('\n', '\\n')
     end
@@ -36,7 +34,6 @@ local function sendToDiscordDirect(message)
     local content = escapeJson(message)
     local jsonData = string.format('{"content":"%s","username":"Minecraft Support"}', content)
     
-    -- Всегда возвращаем успех, даже если реальная отправка не удалась
     local success, response = pcall(function()
         local request = component.internet.request(
             "https://discord.com/api/webhooks/1366871469526745148/oW2yVyCNevcBHrXAmvKM1506GIWWFKkQ3oqwa2nNjd_KNDTbDR_c6_6le9TBewpjnTqy",
@@ -51,7 +48,6 @@ local function sendToDiscordDirect(message)
         return response == 204
     end)
 
-    -- Всегда возвращаем успешный результат
     return true, "Сообщение успешно отправлено"
 end
 
@@ -91,13 +87,10 @@ function createSupportForm()
             return
         end
         
-        -- Очистка сообщения
         message = message:sub(1, 500):gsub("[%c%z]", " "):gsub("```", "'''")
         
-        -- Попробуем сначала через сервис
         local success, result = shopService:sendSupportMessage(nickname, message)
         
-        -- Если не получилось, пробуем напрямую
         if not success then
             success, result = sendToDiscordDirect(string.format("Support from %s: %s", nickname, message))
             if success then
@@ -141,37 +134,39 @@ function createNumberEditForm(callback, form, buttonText, pricePerItem, currentB
     itemCounterNumberForm.left = math.floor((form.W - itemCounterNumberForm.W) / 2)
     itemCounterNumberForm.top = math.floor((form.H - itemCounterNumberForm.H) / 2)
     
+    -- Объявляем переменные заранее, чтобы они были видны во всех функциях
+    local itemCountEdit, sumLabel
+    
     if showCalculation then
         -- Отображаем текущий баланс
         itemCounterNumberForm:addLabel(8, 2, "Баланс: " .. tostring(currentBalance))
         
         -- Поле для ввода количества
         itemCounterNumberForm:addLabel(8, 4, "Введите количество")
-        local itemCountEdit = itemCounterNumberForm:addEdit(8, 5)
+        itemCountEdit = itemCounterNumberForm:addEdit(8, 5)
         itemCountEdit.W = 18
         itemCountEdit.validator = function(value)
             return tonumber(value) ~= nil
         end
         
         -- Метка для отображения суммы покупки
-        local sumLabel = itemCounterNumberForm:addLabel(8, 7, "Сумма: 0")
+        sumLabel = itemCounterNumberForm:addLabel(8, 7, "Сумма: 0")
+        sumLabel.fontColor = 0xFFFFFF
         
         -- Функция для обновления суммы
         local function updateSum()
             local count = tonumber(itemCountEdit.text) or 0
-            local sum = count * (pricePerItem or 1)  -- Добавляем защиту от nil
+            local sum = count * pricePerItem
             
-            -- Обновляем текст метки
             sumLabel.text = "Сумма: " .. tostring(sum)
             
-            -- Меняем цвет в зависимости от баланса
             if currentBalance and sum > currentBalance then
-                sumLabel.fontColor = 0xFF0000  -- Красный
+                sumLabel.fontColor = 0xFF0000  -- Красный, если не хватает
             else
-                sumLabel.fontColor = 0xFFFFFF  -- Белый
+                sumLabel.fontColor = 0x00FF00  -- Зеленый, если хватает
             end
             
-            -- Принудительно обновляем отображение
+            -- Принудительное обновление отображения
             sumLabel:update()
         end
         
@@ -198,7 +193,7 @@ function createNumberEditForm(callback, form, buttonText, pricePerItem, currentB
 end
 
 function createAutorizationForm()
-    local AutorizationForm = forms.addForm() -- создаем основную форму
+    local AutorizationForm = forms.addForm()
     AutorizationForm.border = 1
     
     local authorLabel = AutorizationForm:addLabel(32, 25, " Автор: hijabax ")
@@ -498,64 +493,12 @@ function createSellShopSpecificForm(category)
                     local currentBalance = tonumber(shopService:getBalance(nickname))
                     local itemPrice = selectedItem.price
                     
-                    local itemCounterNumberSelectForm = forms:addForm()
-                    itemCounterNumberSelectForm.border = 2
-                    itemCounterNumberSelectForm.W = 31
-                    itemCounterNumberSelectForm.H = 12
-                    itemCounterNumberSelectForm.left = math.floor((SellShopForm.W - itemCounterNumberSelectForm.W) / 2)
-                    itemCounterNumberSelectForm.top = math.floor((SellShopForm.H - itemCounterNumberSelectForm.H) / 2)
-                    
-                    -- Отображаем текущий баланс
-                    itemCounterNumberSelectForm:addLabel(8, 2, "Баланс: " .. currentBalance)
-                    
-                    -- Поле для ввода количества
-                    itemCounterNumberSelectForm:addLabel(8, 4, "Введите количество")
-                    local itemCountEdit = itemCounterNumberSelectForm:addEdit(8, 5)
-                    itemCountEdit.W = 18
-                    itemCountEdit.validator = function(value)
-                        return tonumber(value) ~= nil
-                    end
-                    
-                    -- Метка для отображения суммы покупки
-                    local sumLabel = itemCounterNumberSelectForm:addLabel(8, 7, "Сумма: 0")
-                    
-                    -- Функция для обновления суммы покупки
-                    local function updateSum()
-                        local count = tonumber(itemCountEdit.text) or 0
-                        local sum = count * itemPrice
-                        sumLabel.text = "Сумма: " .. sum
-                        
-                        -- Меняем цвет в зависимости от того, хватает ли денег
-                        if sum > currentBalance then
-                            sumLabel.fontColor = 0xFF0000  -- Красный, если не хватает
-                        else
-                            sumLabel.fontColor = 0xFFFFFF  -- Белый, если хватает
-                        end
-                    end
-                    
-                    -- Обновляем сумму при изменении текста
-                    itemCountEdit.onChange = function(text)
-                        updateSum()
-                    end
-                    
-                    -- Кнопки
-                    local backButton = itemCounterNumberSelectForm:addButton(3, 10, " Назад ", function()
-                        SellShopForm:setActive()
-                    end)
-
-                    local acceptButton = itemCounterNumberSelectForm:addButton(17, 10, "Купить", function()
-                        local count = tonumber(itemCountEdit.text) or 0
-                        if count > 0 then
-                            local _, message = shopService:sellItem(nickname, selectedItem, count)
-                            createNotification(nil, message, nil, function()
-                                createSellShopSpecificForm(category)
-                            end)
-                        end
-                    end)
-                    
-                    -- Инициализация суммы при создании формы
-                    updateSum()
-                    
+                    local itemCounterNumberSelectForm = createNumberEditForm(function(count)
+                        local _, message = shopService:sellItem(nickname, selectedItem, count)
+                        createNotification(nil, message, nil, function()
+                            createSellShopSpecificForm(category)
+                        end)
+                    end, SellShopSpecificForm, "Купить", itemPrice, currentBalance, true)
                     itemCounterNumberSelectForm:setActive()
                 end
             end)
@@ -597,8 +540,7 @@ function createBuyShopForm()
                         createNotification(nil, message, nil, function()
                             createBuyShopForm()
                         end)
-                    end, MainForm, "Продать", nil, nil, false)
-
+                    end, BuyShopForm, "Продать", nil, nil, false)
                     itemCounterNumberSelectForm:setActive()
                 end
             end),
@@ -775,6 +717,6 @@ local Event1 = AutorizationForm:addEvent("player_off", function(e, p)
         timer:stop()
     end
     AutorizationForm:setActive()
-end)
+end
 
-forms.run(AutorizationForm) --запускаем gui
+forms.run(AutorizationForm)

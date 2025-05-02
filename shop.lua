@@ -48,7 +48,7 @@ local function sendToDiscordDirect(message)
         return response == 204
     end)
 
-    return true, "Сообщение успешно отправлено"
+    return success, response and "Сообщение успешно отправлено" or "Ошибка отправки сообщения"
 end
 
 function createSupportForm()
@@ -134,14 +134,11 @@ function createNumberEditForm(callback, form, buttonText, pricePerItem, currentB
     itemCounterNumberForm.left = math.floor((form.W - itemCounterNumberForm.W) / 2)
     itemCounterNumberForm.top = math.floor((form.H - itemCounterNumberForm.H) / 2)
     
-    -- Объявляем переменные заранее, чтобы они были видны во всех функциях
     local itemCountEdit, sumLabel
     
     if showCalculation then
-        -- Отображаем текущий баланс
         itemCounterNumberForm:addLabel(8, 2, "Баланс: " .. tostring(currentBalance))
         
-        -- Поле для ввода количества
         itemCounterNumberForm:addLabel(8, 4, "Введите количество")
         itemCountEdit = itemCounterNumberForm:addEdit(8, 5)
         itemCountEdit.W = 18
@@ -149,11 +146,9 @@ function createNumberEditForm(callback, form, buttonText, pricePerItem, currentB
             return tonumber(value) ~= nil
         end
         
-        -- Метка для отображения суммы покупки
         sumLabel = itemCounterNumberForm:addLabel(8, 7, "Сумма: 0")
         sumLabel.fontColor = 0xFFFFFF
         
-        -- Функция для обновления суммы
         local function updateSum()
             local count = tonumber(itemCountEdit.text) or 0
             local sum = count * pricePerItem
@@ -161,25 +156,28 @@ function createNumberEditForm(callback, form, buttonText, pricePerItem, currentB
             sumLabel.text = "Сумма: " .. tostring(sum)
             
             if currentBalance and sum > currentBalance then
-                sumLabel.fontColor = 0xFF0000  -- Красный, если не хватает
+                sumLabel.fontColor = 0xFF0000
             else
-                sumLabel.fontColor = 0x00FF00  -- Зеленый, если хватает
+                sumLabel.fontColor = 0x00FF00
             end
             
-            -- Принудительное обновление отображения
             sumLabel:update()
         end
         
-        -- Подписываемся на изменения в поле ввода
         itemCountEdit.onChange = function(text)
             updateSum()
         end
         
-        -- Инициализация при создании
         updateSum()
+    else
+        itemCounterNumberForm:addLabel(8, 4, "Введите количество")
+        itemCountEdit = itemCounterNumberForm:addEdit(8, 5)
+        itemCountEdit.W = 18
+        itemCountEdit.validator = function(value)
+            return tonumber(value) ~= nil
+        end
     end
     
-    -- Кнопки
     local backButton = itemCounterNumberForm:addButton(3, showCalculation and 10 or 8, " Назад ", function()
         form:setActive()
     end)
@@ -214,7 +212,7 @@ function createAutorizationForm()
     local nameLabel13 = AutorizationForm:addLabel(11, 15,"                         | |          ")
     local nameLabel14 = AutorizationForm:addLabel(11, 16,"                         |_|          ")
     local nameLabel15 = AutorizationForm:addLabel(11, 17,"                      ")
-    local nameLabel15 = AutorizationForm:addLabel(11, 18,"            Встаньте на PIM          ")
+    local nameLabel16 = AutorizationForm:addLabel(11, 18,"            Встаньте на PIM          ")
     authorLabel.fontColor = 0x00FDFF
 
     return AutorizationForm
@@ -233,8 +231,7 @@ function createListForm(name, label, items, buttons, filter)
 
     local shopNameLabel = ShopForm:addLabel(35, 4, name)
     local shopCountLabel = ShopForm:addLabel(4, 6, label)
-    local itemList = ShopForm:addList(5, 7, function()
-    end)
+    local itemList = ShopForm:addList(5, 7, function() end)
 
     for i = 1, #items do
         if (not filter or (unicode.lower(items[i].displayName):find(unicode.lower(filter)))) then
@@ -304,7 +301,6 @@ function createGarbageForm()
                 if (selectedItem) then
                     local NumberForm = createNumberEditForm(function(count)
                         local count, message = shopService:withdrawItem(nickname, selectedItem.id, selectedItem.dmg, count)
-
                         createNotification(count, message, nil, function()
                             createGarbageForm()
                         end)
@@ -325,11 +321,9 @@ function createMainForm(nick)
     local authorLabel = MainForm:addLabel(32, 25, " Автор: hijabax ")
     authorLabel.fontColor = 0x00FDFF
 
-    -- Размеры экрана
     local screenWidth = 80
     local screenHeight = 25
 
-    -- Информация о пользователе (смещена вниз)
     MainForm:addLabel(5, 5, "Ваш ник: ").fontSize = 1.2
     local nickLabel = MainForm:addLabel(20, 5, nick)
     nickLabel.fontSize = 1.2
@@ -338,16 +332,13 @@ function createMainForm(nick)
     local balanceLabel = MainForm:addLabel(20, 7, shopService:getBalance(nick))
     balanceLabel.fontSize = 1.2
 
-    -- Параметры кнопок
     local buttonHeight = 3
     local smallButtonWidth = 22
-    local largeButtonWidth = 34  -- Ширина для больших кнопок
+    local largeButtonWidth = 34
     
-    -- Позиционирование (рассчитано для 80-символьной ширины)
     local startX = 5
-    local endX = 75  -- 80 - 5 (отступ)
+    local endX = 75
     
-    -- Первый ряд кнопок (КУПИТЬ и ПРОДАТЬ) - начинаются на 10 строке
     local buyButton = MainForm:addButton(startX, 10, " КУПИТЬ ", function()
         createSellShopForm()
     end)
@@ -356,7 +347,6 @@ function createMainForm(nick)
     buyButton.color = 0x006600
     buyButton.fontColor = 0xFFFFFF
 
-    -- ПРОДАТЬ выравниваем по правому краю (как ВЫХОД)
     local sellButton = MainForm:addButton(endX - largeButtonWidth, 10, " ПРОДАТЬ ", function()
         createBuyShopForm()
     end)
@@ -365,8 +355,7 @@ function createMainForm(nick)
     sellButton.color = 0xFFA500
     sellButton.fontColor = 0xFFFFFF
 
-    -- Второй ряд кнопок (3 кнопки) - начинаются на 15 строке
-    local buttonSpacing = 4  -- Расстояние между кнопками
+    local buttonSpacing = 4
     
     local supportButton = MainForm:addButton(startX, 15, " СВЯЗАТЬСЯ С НАМИ ", function()
         createSupportForm():setActive()
@@ -412,48 +401,48 @@ function createSellShopForm()
     end)
     categoryButton1.W = 23
     categoryButton1.H = 3
-    local categoryButton1 = SellShopForm:addButton(29, 9, " Industrial Craft 2 ", function()
+    local categoryButton2 = SellShopForm:addButton(29, 9, " Industrial Craft 2 ", function()
         createSellShopSpecificForm("IC2")
     end)
-    categoryButton1.W = 24
-    categoryButton1.H = 3
-    local categoryButton1 = SellShopForm:addButton(54, 9, " Applied Energistics 2 ", function()
+    categoryButton2.W = 24
+    categoryButton2.H = 3
+    local categoryButton3 = SellShopForm:addButton(54, 9, " Applied Energistics 2 ", function()
         createSellShopSpecificForm("AE2")
     end)
-    categoryButton1.W = 23
-    categoryButton1.H = 3
+    categoryButton3.W = 23
+    categoryButton3.H = 3
 
-    local categoryButton1 = SellShopForm:addButton(5, 13, " Forestry ", function()
+    local categoryButton4 = SellShopForm:addButton(5, 13, " Forestry ", function()
         createSellShopSpecificForm("Forestry")
     end)
-    categoryButton1.W = 23
-    categoryButton1.H = 3
-    local categoryButton1 = SellShopForm:addButton(29, 13, " Зачарованные книги ", function()
+    categoryButton4.W = 23
+    categoryButton4.H = 3
+    local categoryButton5 = SellShopForm:addButton(29, 13, " Зачарованные книги ", function()
         createSellShopSpecificForm("Books")
     end)
-    categoryButton1.W = 24
-    categoryButton1.H = 3
-    local categoryButton1 = SellShopForm:addButton(54, 13, " Draconic Evolution ", function()
+    categoryButton5.W = 24
+    categoryButton5.H = 3
+    local categoryButton6 = SellShopForm:addButton(54, 13, " Draconic Evolution ", function()
         createSellShopSpecificForm("DE")
     end)
-    categoryButton1.W = 23
-    categoryButton1.H = 3
+    categoryButton6.W = 23
+    categoryButton6.H = 3
 
-    local categoryButton1 = SellShopForm:addButton(5, 17, " Thermal Expansion ", function()
+    local categoryButton7 = SellShopForm:addButton(5, 17, " Thermal Expansion ", function()
         createSellShopSpecificForm("TE")
     end)
-    categoryButton1.W = 23
-    categoryButton1.H = 3
-    local categoryButton1 = SellShopForm:addButton(29, 17, " Скоро ")
-    categoryButton1.W = 24
-    categoryButton1.H = 3
-    categoryButton1.fontColor = 0xaaaaaa
-    categoryButton1.color = 0x000000
-    local categoryButton1 = SellShopForm:addButton(54, 17, " Скоро ")
-    categoryButton1.W = 23
-    categoryButton1.H = 3
-    categoryButton1.fontColor = 0xaaaaaa
-    categoryButton1.color = 0x000000
+    categoryButton7.W = 23
+    categoryButton7.H = 3
+    local categoryButton8 = SellShopForm:addButton(29, 17, " Скоро ")
+    categoryButton8.W = 24
+    categoryButton8.H = 3
+    categoryButton8.fontColor = 0xaaaaaa
+    categoryButton8.color = 0x000000
+    local categoryButton9 = SellShopForm:addButton(54, 17, " Скоро ")
+    categoryButton9.W = 23
+    categoryButton9.H = 3
+    categoryButton9.fontColor = 0xaaaaaa
+    categoryButton9.color = 0x000000
 
     local shopBackButton = SellShopForm:addButton(3, 23, " Назад ", function()
         MainForm = createMainForm(nickname)
@@ -602,13 +591,15 @@ function createOreExchangerForm()
                 end)
             end),
             createButton(" Обменять ", 54, 23, function(selectedItem)
-                local itemCounterNumberSelectForm = createNumberEditForm(function(count)
-                    local _, message, message2 = shopService:exchangeOre(nickname, selectedItem, count)
-                    createNotification(nil, message, message2, function()
-                        createOreExchangerForm()
-                    end)
-                end, OreExchangerForm, "Обменять", nil, nil, false)
-                itemCounterNumberSelectForm:setActive()
+                if selectedItem then
+                    local itemCounterNumberSelectForm = createNumberEditForm(function(count)
+                        local _, message, message2 = shopService:exchangeOre(nickname, selectedItem, count)
+                        createNotification(nil, message, message2, function()
+                            createOreExchangerForm()
+                        end)
+                    end, OreExchangerForm, "Обменять", nil, nil, false)
+                    itemCounterNumberSelectForm:setActive()
+                end
             end)
         })
 
@@ -639,7 +630,7 @@ function createExchangerForm()
                 MainForm:setActive()
             end),
             createButton(" Обменять ", 68, 23, function(selectedItem)
-                if (selectedItem) then
+                if selectedItem then
                     local itemCounterNumberSelectForm = createNumberEditForm(function(count)
                         local _, message, message2 = shopService:exchange(nickname, selectedItem, count)
                         createNotification(nil, message, message2, function()
@@ -667,8 +658,7 @@ function createRulesForm()
 
     local shopNameLabel = ShopForm:addLabel(35, 4, " Условия ")
 
-    local ruleList = ShopForm:addList(5, 6, function()
-    end)
+    local ruleList = ShopForm:addList(5, 6, function() end)
 
     ruleList:insert("1. Товар обмену и возврату не подлежит ")
     ruleList:insert("2. При сбоях работы сервера возврат средств")
@@ -709,7 +699,7 @@ local Event1 = AutorizationForm:addEvent("player_on", function(e, p)
     end
 end)
 
-local Event1 = AutorizationForm:addEvent("player_off", function(e, p)
+local Event2 = AutorizationForm:addEvent("player_off", function(e, p)
     if (nickname ~= 'hijabax') then
         computer.removeUser(nickname)
     end

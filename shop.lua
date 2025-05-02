@@ -137,8 +137,10 @@ function createNumberEditForm(callback, form, buttonText, pricePerItem, currentB
     local itemCountEdit, sumLabel
     
     if showCalculation then
+        -- Отображаем текущий баланс
         itemCounterNumberForm:addLabel(8, 2, "Баланс: " .. tostring(currentBalance))
         
+        -- Поле для ввода количества
         itemCounterNumberForm:addLabel(8, 4, "Введите количество")
         itemCountEdit = itemCounterNumberForm:addEdit(8, 5)
         itemCountEdit.W = 18
@@ -146,9 +148,11 @@ function createNumberEditForm(callback, form, buttonText, pricePerItem, currentB
             return tonumber(value) ~= nil
         end
         
+        -- Метка для отображения суммы покупки
         sumLabel = itemCounterNumberForm:addLabel(8, 7, "Сумма: 0")
         sumLabel.fontColor = 0xFFFFFF
         
+        -- Функция для обновления суммы
         local function updateSum()
             local count = tonumber(itemCountEdit.text) or 0
             local sum = count * pricePerItem
@@ -156,18 +160,21 @@ function createNumberEditForm(callback, form, buttonText, pricePerItem, currentB
             sumLabel.text = "Сумма: " .. tostring(sum)
             
             if currentBalance and sum > currentBalance then
-                sumLabel.fontColor = 0xFF0000
+                sumLabel.fontColor = 0xFF0000  -- Красный, если не хватает
             else
-                sumLabel.fontColor = 0x00FF00
+                sumLabel.fontColor = 0x00FF00  -- Зеленый, если хватает
             end
             
-            sumLabel:update()
+            -- Вместо sumLabel:update() просто перерисовываем форму
+            itemCounterNumberForm:draw()
         end
         
+        -- Подписываемся на изменения в поле ввода
         itemCountEdit.onChange = function(text)
             updateSum()
         end
         
+        -- Инициализация при создании
         updateSum()
     else
         itemCounterNumberForm:addLabel(8, 4, "Введите количество")

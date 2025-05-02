@@ -321,7 +321,7 @@ function ShopService:new(terminalName)
             playerData.balance = playerData.balance - (itemsCount * itemCfg.price)
             self.db:update(nick, playerData)
             local itemName = itemCfg.label or (itemCfg.id .. ":" .. itemCfg.dmg)
-            printD(":green_circle: ```**" .. nick .. "** купил " .. itemName .. " (x" .. itemsCount .. ") по " .. itemCfg.price .. " в " .. obj.terminalName .. ". Баланс: " .. playerData.balance .. "```")
+            printD(":green_circle: ```" .. nick .. " купил " .. itemName .. " (x" .. itemsCount .. ") по " .. itemCfg.price .. " в " .. self.terminalName .. ". Баланс: " .. playerData.balance .. "```")
             return itemsCount, "Куплено " .. itemsCount .. " предметов!"
         end
         return 0, "Ошибка выдачи предмета"
@@ -339,7 +339,7 @@ function ShopService:new(terminalName)
             end
             
             local itemName = itemCfg.label or (itemCfg.id .. ":" .. itemCfg.dmg)
-            printD(":green_circle: ```**" .. nick .. "** продал " .. itemName .. " (x" .. itemsCount .. ") по " .. itemCfg.price .. " в " .. obj.terminalName .. ". Баланс: " .. playerData.balance .. "```")
+            printD(":green_circle: ```" .. nick .. " продал " .. itemName .. " (x" .. itemsCount .. ") по " .. itemCfg.price .. " в " .. self.terminalName .. ". Баланс: " .. playerData.balance .. "```")
             return itemsCount, "Продано "..itemsCount.." предметов"
         end
         return 0, "Не удалось принять предметы"

@@ -128,10 +128,9 @@ function createNotification(status, text, secondText, callback)
 end
 
 function createNumberEditForm(callback, form, buttonText, pricePerItem, currentBalance, showCalculation)
-    -- Проверка входных параметров
-    if showCalculation and (not pricePerItem or type(pricePerItem) ~= "number") then
-        error("Неверная цена за единицу товара")
-    end
+    -- Проверка и инициализация цены
+    pricePerItem = tonumber(pricePerItem) or 0
+    currentBalance = tonumber(currentBalance) or 0
 
     local itemCounterNumberForm = forms:addForm()
     itemCounterNumberForm.border = 2
@@ -140,81 +139,72 @@ function createNumberEditForm(callback, form, buttonText, pricePerItem, currentB
     itemCounterNumberForm.left = math.floor((form.W - itemCounterNumberForm.W) / 2)
     itemCounterNumberForm.top = math.floor((form.H - itemCounterNumberForm.H) / 2)
 
-    -- Создаем элементы интерфейса
+    -- Элементы интерфейса
     local balanceLabel, itemCountEdit, sumLabel
     
     if showCalculation then
-        balanceLabel = itemCounterNumberForm:addLabel(8, 2, "Баланс: " .. tostring(currentBalance))
+        balanceLabel = itemCounterNumberForm:addLabel(8, 2, "Баланс: " .. string.format("%.2f", currentBalance))
         balanceLabel.fontColor = 0xFFFFFF
     end
     
     itemCounterNumberForm:addLabel(8, 4, "Введите количество")
     itemCountEdit = itemCounterNumberForm:addEdit(8, 5)
     itemCountEdit.W = 18
-    itemCountEdit.text = "1"  -- Устанавливаем начальное значение 1
+    itemCountEdit.text = "1"  -- Начальное значение
     
     if showCalculation then
-        sumLabel = itemCounterNumberForm:addLabel(8, 7, "Сумма: " .. string.format("%.2f", pricePerItem or 0))
-        sumLabel.fontColor = 0xFFFFFF
+        sumLabel = itemCounterNumberForm:addLabel(8, 7, "Сумма: " .. string.format("%.2f", pricePerItem))
+        sumLabel.fontColor = 0x00FF00
     end
 
-    -- Функция обновления суммы (теперь с принудительной перерисовкой)
+    -- Функция обновления суммы с защитой от ошибок
     local function updateSum()
         if not showCalculation then return end
         
-        local currentText = itemCountEdit.text
-        local count = tonumber(currentText) or 0
-        local sum = count * (pricePerItem or 0)
+        local count = tonumber(itemCountEdit.text) or 0
+        local sum = count * pricePerItem
         
         sumLabel.text = "Сумма: " .. string.format("%.2f", sum)
-        sumLabel.fontColor = (currentBalance and sum > currentBalance) and 0xFF0000 or 0x00FF00
+        sumLabel.fontColor = sum > currentBalance and 0xFF0000 or 0x00FF00
         
-        -- Принудительная перерисовка метки
+        -- Принудительное обновление
         gpu.setBackground(0x000000)
         gpu.setForeground(sumLabel.fontColor)
         gpu.set(sumLabel.left, sumLabel.top, sumLabel.text)
     end
 
     -- Обработчики событий
-    itemCountEdit.onChange = function(text)
-        updateSum()
-    end
-
     itemCountEdit.onInput = function(text)
         updateSum()
     end
 
-    -- Инициализация таймера с проверкой
+    itemCountEdit.onChange = function(text)
+        updateSum()
+    end
+
+    -- Таймер обновления (если нужно)
     local updateTimer
     if showCalculation then
         updateTimer = itemCounterNumberForm:addTimer(0.5, updateSum)
-        if updateTimer and type(updateTimer.start) == "function" then
-            updateTimer:start()
+        if updateTimer then
+            pcall(function() updateTimer:start() end)  -- Защищенный вызов
         end
     end
 
     -- Кнопки
     local backButton = itemCounterNumberForm:addButton(3, showCalculation and 10 or 8, " Назад ", function()
-        if updateTimer and type(updateTimer.stop) == "function" then
-            updateTimer:stop()
-        end
+        if updateTimer then pcall(function() updateTimer:stop() end) end
         form:setActive()
     end)
 
     local acceptButton = itemCounterNumberForm:addButton(17, showCalculation and 10 or 8, buttonText or "Принять", function()
-        if updateTimer and type(updateTimer.stop) == "function" then
-            updateTimer:stop()
-        end
-        local count = tonumber(itemCountEdit.text) or 0
-        if count > 0 then
-            callback(count)
-        end
+        if updateTimer then pcall(function() updateTimer:stop() end) end
+        local count = math.floor(tonumber(itemCountEdit.text) or 1)
+        callback(math.max(1, count))  -- Минимум 1 предмет
     end)
 
-    -- Инициализация начальной суммы
-    if showCalculation then
-        updateSum()
-    end
+    -- Первоначальное обновление
+    if showCalculation then updateSum() end
 
     return itemCounterNumberForm
 end

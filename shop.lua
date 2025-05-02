@@ -134,13 +134,6 @@ function createNumberEditForm(callback, form, buttonText)
     itemCounterNumberForm.H = 10
     itemCounterNumberForm.left = math.floor((form.W - itemCounterNumberForm.W) / 2)
     itemCounterNumberForm.top = math.floor((form.H - itemCounterNumberForm.H) / 2)
-
-    local balanceLabel
-    if createNumberEditForm then
-        balanceLabel = itemCounterNumberForm:addLabel(8, 2, "Баланс: " .. string.format("%.2f", currentBalance))
-        balanceLabel.fontColor = 0xFFFFFF
-    end
-
     itemCounterNumberForm:addLabel(8, 3, "Введите количество")
     local itemCountEdit = itemCounterNumberForm:addEdit(8, 4)
     itemCountEdit.W = 18
@@ -437,6 +430,9 @@ function createSellShopSpecificForm(category)
         items[i].displayName = name
     end
 
+    local currentBalance = tonumber(shopService:getBalance(nickname)) or 0
+    local selectedItemPrice = nil
+
     SellShopSpecificForm = createListForm(" Магазин ",
         " Наименование                                       Количество Цена в железе    ",
         items,
@@ -446,19 +442,50 @@ function createSellShopSpecificForm(category)
             end),
             createButton(" Купить ", 68, 23, function(selectedItem)
                 if selectedItem then
-                    local currentBalance = tonumber(shopService:getBalance(nickname))
-                    local itemPrice = selectedItem.price
-                    
+                    selectedItemPrice = selectedItem.price
                     local itemCounterNumberSelectForm = createNumberEditForm(function(count)
                         local _, message = shopService:sellItem(nickname, selectedItem, count)
                         createNotification(nil, message, nil, function()
                             createSellShopSpecificForm(category)
                         end)
-                    end, SellShopSpecificForm, "Купить", selectedItem.price, currentBalance, true)
+                    end, SellShopSpecificForm, "Купить")
                     itemCounterNumberSelectForm:setActive()
                 end
             end)
         })
+
+    -- Добавляем отображение баланса справа вверху
+    local balanceLabel = SellShopSpecificForm:addLabel(60, 1, "Баланс: " .. string.format("%.2f", currentBalance))
+    balanceLabel.fontColor = 0x00FF00
+
+    -- Добавляем отображение суммы покупки
+    local sumLabel = SellShopSpecificForm:addLabel(60, 2, "Сумма: 0.00")
+    sumLabel.fontColor = 0xFFFFFF
+
+    -- Функция обновления суммы
+    local function updateSum(count)
+        if not selectedItemPrice then return end
+        local sum = (tonumber(count) or 0) * selectedItemPrice
+        sumLabel.text = "Сумма: " .. string.format("%.2f", sum)
+        sumLabel.fontColor = sum > currentBalance and 0xFF0000 or 0x00FF00
+        SellShopSpecificForm:draw()
+    end
+
+    -- Модифицируем обработчик выбора элемента
+    local originalCallback = SellShopSpecificForm.children[#SellShopSpecificForm.children].callback
+    SellShopSpecificForm.children[#SellShopSpecificForm.children].callback = function(item)
+        selectedItemPrice = item and item.price or nil
+        updateSum(1) -- Сбрасываем сумму при выборе нового предмета
+        originalCallback(item)
+    end
+
+    -- Добавляем обработчик ввода количества
+    local edit = SellShopSpecificForm:addEdit(60, 3)
+    edit.W = 15
+    edit.text = "1"
+    edit.onChange = function(text)
+        updateSum(text)
+    end
 
     SellShopSpecificForm:setActive()
 end

@@ -309,7 +309,7 @@ function createMainForm(nick)
     local buttonHeight = 3
     local largeButtonWidth = 34
     local smallButtonWidth = 22
-    local buttonSpacing = 10  -- Отступ между кнопками
+    local buttonSpacing = 8  -- Отступ между кнопками
 
     -- Первый ряд кнопок (КУПИТЬ и ПРОДАТЬ)
     local buyButton = MainForm:addButton(centerX - largeButtonWidth - buttonSpacing/2, 12, " КУПИТЬ ", function()

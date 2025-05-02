@@ -127,72 +127,27 @@ function createNotification(status, text, secondText, callback)
     notificationForm:setActive()
 end
 
-function createNumberEditForm(callback, parentForm, buttonText, pricePerItem, currentBalance, showCalculation)
-    -- Проверка и инициализация параметров
-    pricePerItem = tonumber(pricePerItem) or 0
-    currentBalance = tonumber(currentBalance) or 0
-    showCalculation = showCalculation or false
-
-    -- Создаем форму
-    local numForm = forms:addForm()
-    numForm.border = 2
-    numForm.W = 40  -- Увеличиваем ширину для лучшего отображения
-    numForm.H = showCalculation and 12 or 10
-    numForm.left = math.floor((parentForm.W - numForm.W) / 2)
-    numForm.top = math.floor((parentForm.H - numForm.H) / 2)
-
-    -- Элементы формы
-    if showCalculation then
-        numForm:addLabel(8, 2, "Баланс: " .. string.format("%.2f", currentBalance))
+function createNumberEditForm(callback, form, buttonText)
+    local itemCounterNumberForm = forms:addForm()
+    itemCounterNumberForm.border = 2
+    itemCounterNumberForm.W = 31
+    itemCounterNumberForm.H = 10
+    itemCounterNumberForm.left = math.floor((form.W - itemCounterNumberForm.W) / 2)
+    itemCounterNumberForm.top = math.floor((form.H - itemCounterNumberForm.H) / 2)
+    itemCounterNumberForm:addLabel(8, 3, "Введите количество")
+    local itemCountEdit = itemCounterNumberForm:addEdit(8, 4)
+    itemCountEdit.W = 18
+    itemCountEdit.validator = function(value)
+        return tonumber(value) ~= nil
     end
-    
-    numForm:addLabel(8, 4, "Введите количество")
-    local edit = numForm:addEdit(8, 5)
-    edit.W = 24
-    edit.text = "1"
-
-    -- Единственная метка суммы (центрированная)
-    local sumLabel
-    if showCalculation then
-        local sumText = "Сумма: " .. string.format("%.2f", pricePerItem)
-        sumLabel = numForm:addLabel(math.floor((numForm.W - unicode.len(sumText)) / 2), 7, sumText)
-        sumLabel.fontColor = 0x00FF00
-    end
-
-    -- Функция обновления суммы
-    local function updateSum()
-        if not showCalculation or not sumLabel then return end
-        
-        local count = tonumber(edit.text) or 0
-        local sum = count * pricePerItem
-        
-        -- Обновляем текст суммы
-        local newText = "Сумма: " .. string.format("%.2f", sum)
-        sumLabel.text = newText
-        sumLabel.left = math.floor((numForm.W - unicode.len(newText)) / 2)  -- Центрируем
-        sumLabel.fontColor = sum > currentBalance and 0xFF0000 or 0x00FF00
-        
-        -- Полная перерисовка формы (вместо ручного обновления)
-        numForm:draw()
-    end
-
-    -- Обработчики событий
-    edit.onInput = updateSum
-    edit.onChange = updateSum
-
-    -- Кнопки
-    numForm:addButton(5, showCalculation and 10 or 8, " Назад ", function()
-        parentForm:setActive()
+    local backButton = itemCounterNumberForm:addButton(3, 8, " Назад ", function()
+        form:setActive()
     end)
 
-    numForm:addButton(25, showCalculation and 10 or 8, buttonText or "Принять", function()
-        callback(math.max(1, tonumber(edit.text) or 1))
+    local acceptButton = itemCounterNumberForm:addButton(17, 8, buttonText, function()
+        callback(itemCountEdit.text and tonumber(itemCountEdit.text) or 0)
     end)
-
-    -- Первое обновление
-    if showCalculation then updateSum() end
-
-    return numForm
+    return itemCounterNumberForm
 end
 
 function createAutorizationForm()

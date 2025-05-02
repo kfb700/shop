@@ -156,61 +156,54 @@ function createNumberEditForm(callback, form, buttonText, pricePerItem, currentB
         sumLabel.fontColor = 0xFFFFFF
     end
 
-    -- Переменные для отслеживания состояния
-    local lastText = ""
-    local updateTimer
-
     -- Функция обновления суммы
     local function updateSum()
         if not showCalculation then return end
         
         local currentText = itemCountEdit.text
-        if currentText == lastText then return end -- избегаем лишних обновлений
-        lastText = currentText
-        
         local count = tonumber(currentText) or 0
         local sum = count * pricePerItem
         
         sumLabel.text = "Сумма: " .. string.format("%.2f", sum)
         sumLabel.fontColor = (currentBalance and sum > currentBalance) and 0xFF0000 or 0x00FF00
-        
-        -- Двойное обновление для гарантии отображения
         sumLabel:draw()
-        gpu.setBackground(0x000000)
-        gpu.setForeground(sumLabel.fontColor)
-        gpu.set(sumLabel.left, sumLabel.top, sumLabel.text)
     end
 
-    -- Обработчики событий
+    -- Обработчик ввода
     itemCountEdit.onInput = function(text)
-        updateSum() -- Обновляем при каждом вводе
+        updateSum()
     end
 
-    -- Инициализация таймера перед использованием
-    updateTimer = itemCounterNumberForm:addTimer(0.5, function()
-        updateSum()
-    end)
-    
-    -- Запуск таймера только после инициализации
-    if updateTimer then 
-        updateTimer:start()
+    -- Инициализация таймера
+    local updateTimer
+    if showCalculation then
+        updateTimer = itemCounterNumberForm:addTimer(0.5, function()
+            updateSum()
+        end)
+        if updateTimer and updateTimer.start then
+            updateTimer:start()
+        end
     end
 
     -- Кнопки
     local backButton = itemCounterNumberForm:addButton(3, showCalculation and 10 or 8, " Назад ", function()
-        if updateTimer then updateTimer:stop() end
+        if updateTimer and updateTimer.stop then
+            updateTimer:stop()
+        end
         form:setActive()
     end)
 
     local acceptButton = itemCounterNumberForm:addButton(17, showCalculation and 10 or 8, buttonText or "Принять", function()
-        if updateTimer then updateTimer:stop() end
+        if updateTimer and updateTimer.stop then
+            updateTimer:stop()
+        end
         local count = tonumber(itemCountEdit.text) or 0
         callback(count)
     end)
 
     -- Очистка при закрытии формы
     itemCounterNumberForm.onClose = function()
-        if updateTimer then
+        if updateTimer and updateTimer.stop then
             updateTimer:stop()
         end
     end

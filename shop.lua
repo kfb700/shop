@@ -450,26 +450,27 @@ function createSellShopSpecificForm(category)
     end
 
     SellShopSpecificForm = createListForm(" Магазин ",
-        " Наименование                                       Количество Цена в железе    ",
-        items,
-        {
-            createButton(" Назад ", 4, 23, function(selectedItem)
-                createSellShopForm()
-            end),
-            createButton(" Купить ", 68, 23, function(selectedItem)
-                local itemCounterNumberSelectForm = createNumberEditForm(function(count)
-                    local _, message = shopService:sellItem(nickname, selectedItem, count)
-                    createNotification(nil, message, nil, function()
-                        createSellShopSpecificForm(category)
-                    end)
-                end, SellShopForm, "Купить")
-                if (selectedItem) then
-                    itemCounterNumberSelectForm:setActive()
-                end
-            end)
-        })
+    " Наименование                                       Количество Цена в железе    ",
+    items,
+    {
+        createButton(" Назад ", 4, 23, function(selectedItem)
+            createSellShopForm()
+        end),
+        createButton(" Купить ", 68, 23, function(selectedItem)
+            local itemCounterNumberSelectForm = createNumberEditForm(function(count)
+                local _, message = shopService:sellItem(nickname, selectedItem, count)
+                createNotification(nil, message, nil, function()
+                    createSellShopSpecificForm(category)
+                end)
+            end, SellShopForm, "Купить", 0x006600, 0xFFFFFF) -- Добавлены параметры цвета
+            if (selectedItem) then
+                itemCounterNumberSelectForm:setActive()
+            end
+        end, 0x006600, 0xFFFFFF) -- Зеленый фон, белый текст
+    }
+)
 
-    SellShopSpecificForm:setActive()
+SellShopSpecificForm:setActive()
 end
 
 function createBuyShopForm()

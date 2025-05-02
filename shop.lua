@@ -133,16 +133,18 @@ function createNotification(status, text, secondText, callback)
     notificationForm:setActive()
 end
 
-function createNumberEditForm(callback, form, buttonText, pricePerItem, currentBalance)
+function createNumberEditForm(callback, form, buttonText, pricePerItem, currentBalance, showCalculation)
     local itemCounterNumberForm = forms:addForm()
     itemCounterNumberForm.border = 2
     itemCounterNumberForm.W = 31
-    itemCounterNumberForm.H = 12  -- Увеличили высоту для отображения дополнительной информации
+    itemCounterNumberForm.H = showCalculation and 12 or 10
     itemCounterNumberForm.left = math.floor((form.W - itemCounterNumberForm.W) / 2)
     itemCounterNumberForm.top = math.floor((form.H - itemCounterNumberForm.H) / 2)
     
-    -- Отображаем текущий баланс
-    itemCounterNumberForm:addLabel(8, 2, "Баланс: " .. currentBalance)
+    if showCalculation then
+        -- Отображаем текущий баланс только если нужно
+        itemCounterNumberForm:addLabel(8, 2, "Баланс: " .. currentBalance)
+    end
     
     -- Поле для ввода количества
     itemCounterNumberForm:addLabel(8, 4, "Введите количество")
@@ -152,39 +154,44 @@ function createNumberEditForm(callback, form, buttonText, pricePerItem, currentB
         return tonumber(value) ~= nil
     end
     
-    -- Метка для отображения суммы покупки
-    local sumLabel = itemCounterNumberForm:addLabel(8, 7, "Сумма: 0")
-    
-    -- Функция для обновления суммы покупки
-    local function updateSum()
-        local count = tonumber(itemCountEdit.text) or 0
-        local sum = count * pricePerItem
-        sumLabel.text = "Сумма: " .. sum
+    local sumLabel
+    if showCalculation then
+        -- Метка для отображения суммы покупки
+        sumLabel = itemCounterNumberForm:addLabel(8, 7, "Сумма: 0")
         
-        -- Меняем цвет в зависимости от того, хватает ли денег
-        if sum > currentBalance then
-            sumLabel.fontColor = 0xFF0000  -- Красный, если не хватает
-        else
-            sumLabel.fontColor = 0xFFFFFF  -- Белый, если хватает
+        -- Функция для обновления суммы покупки
+        local function updateSum()
+            local count = tonumber(itemCountEdit.text) or 0
+            local sum = count * pricePerItem
+            sumLabel.text = "Сумма: " .. sum
+            
+            -- Меняем цвет в зависимости от того, хватает ли денег
+            if sum > currentBalance then
+                sumLabel.fontColor = 0xFF0000  -- Красный, если не хватает
+            else
+                sumLabel.fontColor = 0xFFFFFF  -- Белый, если хватает
+            end
+        end
+        
+        -- Обновляем сумму при изменении текста
+        itemCountEdit.onChange = function(text)
+            updateSum()
         end
     end
     
-    -- Обновляем сумму при изменении текста
-    itemCountEdit.onChange = function(text)
-        updateSum()
-    end
-    
     -- Кнопки
-    local backButton = itemCounterNumberForm:addButton(3, 10, " Назад ", function()
+    local backButton = itemCounterNumberForm:addButton(3, showCalculation and 10 or 8, " Назад ", function()
         form:setActive()
     end)
 
-    local acceptButton = itemCounterNumberForm:addButton(17, 10, buttonText, function()
+    local acceptButton = itemCounterNumberForm:addButton(17, showCalculation and 10 or 8, buttonText, function()
         callback(itemCountEdit.text and tonumber(itemCountEdit.text) or 0)
     end)
     
-    -- Инициализация суммы при создании формы
-    updateSum()
+    if showCalculation then
+        -- Инициализация суммы при создании формы
+        updateSum()
+    end
     
     return itemCounterNumberForm
 end
@@ -491,7 +498,7 @@ function createSellShopSpecificForm(category)
                     createNotification(nil, message, nil, function()
                         createSellShopSpecificForm(category)
                     end)
-                end, SellShopForm, "Купить", selectedItem.price, tonumber(shopService:getBalance(nickname)))
+                end, SellShopForm, "Купить", selectedItem.price, tonumber(shopService:getBalance(nickname)), true)
                 if (selectedItem) then
                     itemCounterNumberSelectForm:setActive()
                 end
@@ -534,7 +541,7 @@ function createBuyShopForm()
                         createNotification(nil, message, nil, function()
                             createBuyShopForm()
                         end)
-                    end, MainForm, "Продать")
+                    end, MainForm, "Продать", nil, nil, false)
 
                     itemCounterNumberSelectForm:setActive()
                 end
@@ -597,13 +604,12 @@ function createOreExchangerForm()
                 end)
             end),
             createButton(" Обменять ", 54, 23, function(selectedItem)
-                if (selectedItem) then
-                    local itemCounterNumberSelectForm = createNumberEditForm(function(count)
-                        local _, message, message2 = shopService:exchangeOre(nickname, selectedItem, count)
-                        createNotification(nil, message, message2, function()
-                            createOreExchangerForm()
-                        end)
-                    end, OreExchangerForm, "Обменять")
+                local itemCounterNumberSelectForm = createNumberEditForm(function(count)
+                    local _, message, message2 = shopService:exchangeOre(nickname, selectedItem, count)
+                    createNotification(nil, message, message2, function()
+                        createOreExchangerForm()
+                    end)
+                end, OreExchangerForm, "Обменять", nil, nil, false)
                     itemCounterNumberSelectForm:setActive()
                 end
             end)

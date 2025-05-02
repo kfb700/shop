@@ -294,7 +294,6 @@ function createMainForm(nick)
 
     -- Размеры экрана
     local screenWidth = 80
-    local screenHeight = 25
 
     -- Информация о пользователе (смещена вниз)
     MainForm:addLabel(5, 5, "Ваш ник: ").fontSize = 1.2
@@ -307,14 +306,15 @@ function createMainForm(nick)
 
     -- Параметры кнопок
     local buttonHeight = 3
-    local smallButtonWidth = 22
     local largeButtonWidth = 34  -- Ширина для больших кнопок
+    local smallButtonWidth = 22  -- Ширина для малых кнопок
     
-    -- Позиционирование (рассчитано для 80-символьной ширины)
+    -- Позиционирование
     local startX = 5
     local endX = 75  -- 80 - 5 (отступ)
-    
-    -- Первый ряд кнопок (КУПИТЬ и ПРОДАТЬ) - начинаются на 10 строке
+    local buttonSpacing = 6      -- Увеличенный отступ между кнопками
+
+    -- Первый ряд кнопок (КУПИТЬ и ПРОДАТЬ) - строка 10
     local buyButton = MainForm:addButton(startX, 10, " КУПИТЬ ", function()
         createSellShopForm()
     end)
@@ -323,7 +323,6 @@ function createMainForm(nick)
     buyButton.color = 0x006600
     buyButton.fontColor = 0xFFFFFF
 
-    -- ПРОДАТЬ выравниваем по правому краю (как ВЫХОД)
     local sellButton = MainForm:addButton(endX - largeButtonWidth, 10, " ПРОДАТЬ ", function()
         createBuyShopForm()
     end)
@@ -332,9 +331,8 @@ function createMainForm(nick)
     sellButton.color = 0xFFA500
     sellButton.fontColor = 0xFFFFFF
 
-    -- Второй ряд кнопок (3 кнопки) - начинаются на 15 строке
-    local buttonSpacing = 4  -- Расстояние между кнопками
-    
+    -- Второй ряд кнопок (3 кнопки) - строка 15 (смещены вниз)
+    -- СВЯЗАТЬСЯ С НАМИ (левая кнопка)
     local supportButton = MainForm:addButton(startX, 15, " СВЯЗАТЬСЯ С НАМИ ", function()
         createSupportForm():setActive()
     end)
@@ -343,14 +341,17 @@ function createMainForm(nick)
     supportButton.color = 0x5555FF
     supportButton.fontColor = 0xFFFFFF
 
-    local rulesButton = MainForm:addButton(startX + smallButtonWidth + buttonSpacing, 15, " ПРАВИЛА ", function()
+    -- ПРАВИЛА (центральная кнопка с отступами)
+    local rulesX = startX + smallButtonWidth + buttonSpacing
+    local rulesButton = MainForm:addButton(rulesX, 15, " ПРАВИЛА ", function()
         RulesForm:setActive()
     end)
     rulesButton.H = buttonHeight
-    rulesButton.W = smallButtonWidth
+    rulesButton.W = smallButtonWidth - 2  -- Чуть уже для отступа
     rulesButton.color = 0x333333
     rulesButton.fontColor = 0xFF8F00
 
+    -- ВЫХОД (правая кнопка, выровнена с ПРОДАТЬ)
     local exitButton = MainForm:addButton(endX - smallButtonWidth, 15, " ВЫХОД ", function()
         AutorizationForm:setActive()
     end)

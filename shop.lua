@@ -342,7 +342,7 @@ function createMainForm(nick)
     supportButton.fontColor = 0xFFFFFF
 
     -- ПРАВИЛА (центральная кнопка)
-    local rulesButton = MainForm:addButton(startX + smallButtonWidth + buttonSpacing -4, 17, " ПРАВИЛА ", function()
+    local rulesButton = MainForm:addButton(startX + smallButtonWidth + buttonSpacing -10, 17, " ПРАВИЛА ", function()
         RulesForm:setActive()
     end)
     rulesButton.H = buttonHeight

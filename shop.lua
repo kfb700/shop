@@ -307,7 +307,7 @@ function createMainForm(nick)
     -- Параметры кнопок
     local buttonHeight = 3
     local largeButtonWidth = 34  -- Ширина для больших кнопок
-    local smallButtonWidth = 15  -- Ширина для малых кнопок
+    local smallButtonWidth = 10  -- Ширина для малых кнопок
     
     -- Позиционирование
     local startX = 5

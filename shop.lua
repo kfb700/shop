@@ -153,7 +153,7 @@ function createNumberEditForm(callback, form, buttonText, pricePerItem, currentB
     itemCountEdit.text = "1"  -- Начальное значение
     
     if showCalculation then
-        sumLabel = itemCounterNumberForm:addLabel(8, 7, "Сумма: " .. string.format("%.2f", pricePerItem))
+        sumLabel = itemCounterNumberForm:addLabel(16, 7, "Сумма: " .. string.format("%.2f", pricePerItem))
         sumLabel.fontColor = 0x00FF00
     end
 
@@ -173,25 +173,8 @@ function createNumberEditForm(callback, form, buttonText, pricePerItem, currentB
     end
 
 
-    -- Функция обновления суммы с защитой от ошибок
-    local function updateSum()
-        if not showCalculation then return end
-        
-        local count = tonumber(itemCountEdit.text) or 0
-        local sum = count * pricePerItem
-        
-        -- Обновляем текст и позицию для центрирования
-        sumLabel.text = "Сумма: " .. string.format("%.2f", sum)
-        sumLabel.fontColor = sum > currentBalance and 0xFF0000 or 0x00FF00
-        
-        -- Очищаем старое значение
-        gpu.setBackground(0x000000)
-        gpu.fill(sumLabel.left, sumLabel.top, unicode.len("Сумма: 9999.99"), 1, " ")
-        
-        -- Рисуем новое значение
-        gpu.setForeground(sumLabel.fontColor)
-        gpu.set(sumLabel.left, sumLabel.top, sumLabel.text)
-    end
+
+
 
     -- Обработчики событий
     itemCountEdit.onInput = function(text)

@@ -343,9 +343,14 @@ function createMainForm(nick)
     supportButton.color = 0x5555FF
     supportButton.fontColor = 0xFFFFFF
 
-    local rulesButton = MainForm:addButton(startX + smallButtonWidth + buttonSpacing-6, 15, " ПРАВИЛА ", function()
+    local rulesButton = MainForm:addButton(
+    math.floor((screenWidth - smallButtonWidth) / 2,  -- X-позиция (центр экрана)
+    15,                                              -- Y-позиция
+    " ПРАВИЛА ", 
+    function()
         RulesForm:setActive()
-    end)
+    end
+)
     rulesButton.H = buttonHeight
     rulesButton.W = smallButtonWidth
     rulesButton.color = 0x333333
@@ -450,27 +455,26 @@ function createSellShopSpecificForm(category)
     end
 
     SellShopSpecificForm = createListForm(" Магазин ",
-    " Наименование                                       Количество Цена в железе    ",
-    items,
-    {
-        createButton(" Назад ", 4, 23, function(selectedItem)
-            createSellShopForm()
-        end),
-        createButton(" Купить ", 68, 23, function(selectedItem)
-            local itemCounterNumberSelectForm = createNumberEditForm(function(count)
-                local _, message = shopService:sellItem(nickname, selectedItem, count)
-                createNotification(nil, message, nil, function()
-                    createSellShopSpecificForm(category)
-                end)
-            end, SellShopForm, "Купить", 0x006600, 0xFFFFFF) -- Добавлены параметры цвета
-            if (selectedItem) then
-                itemCounterNumberSelectForm:setActive()
-            end
-        end, 0x006600, 0xFFFFFF) -- Зеленый фон, белый текст
-    }
-)
+        " Наименование                                       Количество Цена в железе    ",
+        items,
+        {
+            createButton(" Назад ", 4, 23, function(selectedItem)
+                createSellShopForm()
+            end),
+            createButton(" Купить ", 68, 23, function(selectedItem)
+                local itemCounterNumberSelectForm = createNumberEditForm(function(count)
+                    local _, message = shopService:sellItem(nickname, selectedItem, count)
+                    createNotification(nil, message, nil, function()
+                        createSellShopSpecificForm(category)
+                    end)
+                end, SellShopForm, "Купить")
+                if (selectedItem) then
+                    itemCounterNumberSelectForm:setActive()
+                end
+            end)
+        })
 
-SellShopSpecificForm:setActive()
+    SellShopSpecificForm:setActive()
 end
 
 function createBuyShopForm()

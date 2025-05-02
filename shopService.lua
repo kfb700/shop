@@ -339,7 +339,7 @@ function ShopService:new(terminalName)
             end
             
             local itemName = itemCfg.label or (itemCfg.id .. ":" .. itemCfg.dmg)
-            printD(":green_circle: ```" .. nick .. " продал " .. itemName .. " (x" .. itemsCount .. ") по " .. itemCfg.price .. " в " .. self.terminalName .. ". Баланс: " .. playerData.balance .. "```")
+            printD(":orange_circle:  ```" .. nick .. " продал " .. itemName .. " (x" .. itemsCount .. ") по " .. itemCfg.price .. " в " .. self.terminalName .. ". Баланс: " .. playerData.balance .. "```")
             return itemsCount, "Продано "..itemsCount.." предметов"
         end
         return 0, "Не удалось принять предметы"

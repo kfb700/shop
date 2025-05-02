@@ -217,21 +217,21 @@ function createAutorizationForm()
     authorLabel.fontColor = 0x00FDFF
 
     -- New ASCII Art: Bober Shop
-    AutorizationForm:addLabel(14, 9,  "██████╗  ██████╗ ██████╗ ███████╗██████╗ ")
-    AutorizationForm:addLabel(14, 10, "██╔══██╗██╔═══██╗██╔══██╗██╔════╝██╔══██╗")
-    AutorizationForm:addLabel(14, 11, "██████╔╝██║   ██║██████╔╝█████╗  ██████╔╝")
-    AutorizationForm:addLabel(14, 12, "██╔══██╗██║   ██║██╔══██╗██╔══╝  ██╔══██╗")
-    AutorizationForm:addLabel(14, 13, "██████╔╝╚██████╔╝██████╔╝███████╗██║  ██║")
-    AutorizationForm:addLabel(14, 14, "╚═════╝  ╚═════╝ ╚═════╝ ╚══════╝╚═╝  ╚═╝")
-    AutorizationForm:addLabel(14, 15, "                                         ")
-    AutorizationForm:addLabel(14, 16, "███████╗██╗  ██╗ ██████╗ ██████╗         ")
-    AutorizationForm:addLabel(14, 17, "██╔════╝██║  ██║██╔═══██╗██╔══██╗        ")
-    AutorizationForm:addLabel(14, 18, "███████╗███████║██║   ██║██████╔╝        ")
-    AutorizationForm:addLabel(14, 19, "╚════██║██╔══██║██║   ██║██╔═══╝         ")
-    AutorizationForm:addLabel(14, 20, "███████║██║  ██║╚██████╔╝██║             ")
-    AutorizationForm:addLabel(14, 21, "╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚═╝             ")
+    AutorizationForm:addLabel(22, 9,  "██████╗  ██████╗ ██████╗ ███████╗██████╗ ")
+    AutorizationForm:addLabel(22, 10, "██╔══██╗██╔═══██╗██╔══██╗██╔════╝██╔══██╗")
+    AutorizationForm:addLabel(22, 11, "██████╔╝██║   ██║██████╔╝█████╗  ██████╔╝")
+    AutorizationForm:addLabel(22, 12, "██╔══██╗██║   ██║██╔══██╗██╔══╝  ██╔══██╗")
+    AutorizationForm:addLabel(22, 13, "██████╔╝╚██████╔╝██████╔╝███████╗██║  ██║")
+    AutorizationForm:addLabel(22, 14, "╚═════╝  ╚═════╝ ╚═════╝ ╚══════╝╚═╝  ╚═╝")
+    AutorizationForm:addLabel(22, 15, "                                         ")
+    AutorizationForm:addLabel(22, 16, "███████╗██╗  ██╗ ██████╗ ██████╗         ")
+    AutorizationForm:addLabel(22, 17, "██╔════╝██║  ██║██╔═══██╗██╔══██╗        ")
+    AutorizationForm:addLabel(22, 18, "███████╗███████║██║   ██║██████╔╝        ")
+    AutorizationForm:addLabel(22, 19, "╚════██║██╔══██║██║   ██║██╔═══╝         ")
+    AutorizationForm:addLabel(22, 20, "███████║██║  ██║╚██████╔╝██║             ")
+    AutorizationForm:addLabel(22, 21, "╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚═╝             ")
     
-    AutorizationForm:addLabel(14, 23, "     ↓  Встаньте на PIM   ↓       ")
+    AutorizationForm:addLabel(22, 23, "     ↓  Встаньте на PIM   ↓       ")
     authorLabel.fontColor = 0x00FDFF
 
     return AutorizationForm

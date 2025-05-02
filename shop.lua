@@ -334,75 +334,73 @@ function createGarbageForm()
     GarbageForm:setActive()
 end
 
-function createMainForm(nick)
-    local MainForm = forms.addForm()
-    MainForm.border = 1
-    local shopNameLabel = MainForm:addLabel(33, 1, " Bober Shop ")
-    shopNameLabel.fontColor = 0x00FDFF
-    local authorLabel = MainForm:addLabel(32, 25, " Автор: hijabax ")
-    authorLabel.fontColor = 0x00FDFF
+function createNumberEditForm(callback, parentForm, buttonText, pricePerItem, currentBalance, showCalculation)
+    -- Проверка и инициализация параметров
+    pricePerItem = tonumber(pricePerItem) or 0
+    currentBalance = tonumber(currentBalance) or 0
+    showCalculation = showCalculation or false
 
-    local screenWidth = 80
-    local screenHeight = 25
+    -- Создаем форму
+    local numForm = forms:addForm()
+    numForm.border = 2
+    numForm.W = 40  -- Увеличиваем ширину для лучшего отображения
+    numForm.H = showCalculation and 12 or 10
+    numForm.left = math.floor((parentForm.W - numForm.W) / 2)
+    numForm.top = math.floor((parentForm.H - numForm.H) / 2)
 
-    MainForm:addLabel(5, 5, "Ваш ник: ").fontSize = 1.2
-    local nickLabel = MainForm:addLabel(20, 5, nick)
-    nickLabel.fontSize = 1.2
+    -- Элементы формы
+    if showCalculation then
+        numForm:addLabel(8, 2, "Баланс: " .. string.format("%.2f", currentBalance))
+    end
     
-    MainForm:addLabel(5, 7, "Баланс: ").fontSize = 1.2
-    local balanceLabel = MainForm:addLabel(20, 7, shopService:getBalance(nick))
-    balanceLabel.fontSize = 1.2
+    numForm:addLabel(8, 4, "Введите количество")
+    local edit = numForm:addEdit(8, 5)
+    edit.W = 24
+    edit.text = "1"
 
-    local buttonHeight = 3
-    local smallButtonWidth = 22
-    local largeButtonWidth = 34
-    
-    local startX = 5
-    local endX = 75
-    
-    local buyButton = MainForm:addButton(startX, 10, " КУПИТЬ ", function()
-        createSellShopForm()
+    -- Метка суммы с центрированием
+    local sumLabel
+    if showCalculation then
+        local sumText = "Сумма: " .. string.format("%.2f", pricePerItem)
+        local sumX = math.floor((numForm.W - unicode.len(sumText)) / 2)  -- Центрируем по ширине формы
+        sumLabel = numForm:addLabel(sumX, 7, sumText)
+        sumLabel.fontColor = 0x00FF00
+    end
+
+    -- Функция обновления суммы
+    local function updateSum()
+        if not showCalculation or not sumLabel then return end
+        
+        local count = tonumber(edit.text) or 0
+        local sum = count * pricePerItem
+        
+        -- Обновляем текст и пересчитываем позицию для центрирования
+        local newText = "Сумма: " .. string.format("%.2f", sum)
+        sumLabel.text = newText
+        sumLabel.left = math.floor((numForm.W - unicode.len(newText)) / 2)
+        sumLabel.fontColor = sum > currentBalance and 0xFF0000 or 0x00FF00
+        
+        -- Полная перерисовка формы
+        numForm:draw()
+    end
+
+    -- Обработчики событий
+    edit.onInput = updateSum
+    edit.onChange = updateSum
+
+    -- Кнопки
+    numForm:addButton(5, showCalculation and 10 or 8, " Назад ", function()
+        parentForm:setActive()
     end)
-    buyButton.H = buttonHeight
-    buyButton.W = largeButtonWidth
-    buyButton.color = 0x006600
-    buyButton.fontColor = 0xFFFFFF
 
-    local sellButton = MainForm:addButton(endX - largeButtonWidth, 10, " ПРОДАТЬ ", function()
-        createBuyShopForm()
+    numForm:addButton(25, showCalculation and 10 or 8, buttonText or "Принять", function()
+        callback(math.max(1, tonumber(edit.text) or 1))
     end)
-    sellButton.H = buttonHeight
-    sellButton.W = largeButtonWidth
-    sellButton.color = 0xFFA500
-    sellButton.fontColor = 0xFFFFFF
 
-    local buttonSpacing = 4
-    
-    local supportButton = MainForm:addButton(startX, 15, " СВЯЗАТЬСЯ С НАМИ ", function()
-        createSupportForm():setActive()
-    end)
-    supportButton.H = buttonHeight
-    supportButton.W = smallButtonWidth
-    supportButton.color = 0x5555FF
-    supportButton.fontColor = 0xFFFFFF
+    -- Первое обновление
+    if showCalculation then updateSum() end
 
-    local rulesButton = MainForm:addButton(startX + smallButtonWidth + buttonSpacing, 15, " ПРАВИЛА ", function()
-        RulesForm:setActive()
-    end)
-    rulesButton.H = buttonHeight
-    rulesButton.W = smallButtonWidth
-    rulesButton.color = 0x333333
-    rulesButton.fontColor = 0xFF8F00
-
-    local exitButton = MainForm:addButton(endX - smallButtonWidth, 15, " ВЫХОД ", function()
-        AutorizationForm:setActive()
-    end)
-    exitButton.H = buttonHeight
-    exitButton.W = smallButtonWidth
-    exitButton.color = 0xFF5555
-    exitButton.fontColor = 0xFFFFFF
-
-    return MainForm
+    return numForm
 end
 
 function createSellShopForm()

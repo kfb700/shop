@@ -185,7 +185,7 @@ function createNumberEditForm(callback, form, buttonText, pricePerItem, currentB
     end)
 
     local acceptButton = itemCounterNumberForm:addButton(17, showCalculation and 10 or 8, buttonText, function()
-        callback(itemCountEdit.text and tonumber(itemCountEdit.text) or 0)
+        callback(itemCountEdit.text and tonumber(itemCountEdit.text) or 0
     end)
     
     if showCalculation then
@@ -610,8 +610,7 @@ function createOreExchangerForm()
                         createOreExchangerForm()
                     end)
                 end, OreExchangerForm, "Обменять", nil, nil, false)
-                    itemCounterNumberSelectForm:setActive()
-                end
+                itemCounterNumberSelectForm:setActive()
             end)
         })
 

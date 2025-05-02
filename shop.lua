@@ -134,6 +134,13 @@ function createNumberEditForm(callback, form, buttonText)
     itemCounterNumberForm.H = 10
     itemCounterNumberForm.left = math.floor((form.W - itemCounterNumberForm.W) / 2)
     itemCounterNumberForm.top = math.floor((form.H - itemCounterNumberForm.H) / 2)
+
+    local balanceLabel
+    if createNumberEditForm then
+        balanceLabel = itemCounterNumberForm:addLabel(8, 2, "Баланс: " .. string.format("%.2f", currentBalance))
+        balanceLabel.fontColor = 0xFFFFFF
+    end
+
     itemCounterNumberForm:addLabel(8, 3, "Введите количество")
     local itemCountEdit = itemCounterNumberForm:addEdit(8, 4)
     itemCountEdit.W = 18

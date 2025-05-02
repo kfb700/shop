@@ -133,26 +133,59 @@ function createNotification(status, text, secondText, callback)
     notificationForm:setActive()
 end
 
-function createNumberEditForm(callback, form, buttonText)
+function createNumberEditForm(callback, form, buttonText, pricePerItem, currentBalance)
     local itemCounterNumberForm = forms:addForm()
     itemCounterNumberForm.border = 2
     itemCounterNumberForm.W = 31
-    itemCounterNumberForm.H = 10
+    itemCounterNumberForm.H = 12  -- Увеличили высоту для отображения дополнительной информации
     itemCounterNumberForm.left = math.floor((form.W - itemCounterNumberForm.W) / 2)
     itemCounterNumberForm.top = math.floor((form.H - itemCounterNumberForm.H) / 2)
-    itemCounterNumberForm:addLabel(8, 3, "Введите количество")
-    local itemCountEdit = itemCounterNumberForm:addEdit(8, 4)
+    
+    -- Отображаем текущий баланс
+    itemCounterNumberForm:addLabel(8, 2, "Баланс: " .. currentBalance)
+    
+    -- Поле для ввода количества
+    itemCounterNumberForm:addLabel(8, 4, "Введите количество")
+    local itemCountEdit = itemCounterNumberForm:addEdit(8, 5)
     itemCountEdit.W = 18
     itemCountEdit.validator = function(value)
         return tonumber(value) ~= nil
     end
-    local backButton = itemCounterNumberForm:addButton(3, 8, " Назад ", function()
+    
+    -- Метка для отображения суммы покупки
+    local sumLabel = itemCounterNumberForm:addLabel(8, 7, "Сумма: 0")
+    
+    -- Функция для обновления суммы покупки
+    local function updateSum()
+        local count = tonumber(itemCountEdit.text) or 0
+        local sum = count * pricePerItem
+        sumLabel.text = "Сумма: " .. sum
+        
+        -- Меняем цвет в зависимости от того, хватает ли денег
+        if sum > currentBalance then
+            sumLabel.fontColor = 0xFF0000  -- Красный, если не хватает
+        else
+            sumLabel.fontColor = 0xFFFFFF  -- Белый, если хватает
+        end
+    end
+    
+    -- Обновляем сумму при изменении текста
+    itemCountEdit.onChange = function(text)
+        updateSum()
+    end
+    
+    -- Кнопки
+    local backButton = itemCounterNumberForm:addButton(3, 10, " Назад ", function()
         form:setActive()
     end)
 
-    local acceptButton = itemCounterNumberForm:addButton(17, 8, buttonText, function()
-        callback(itemCountEdit.text and tonumber(itemCountEdit.text) or 0)
+    local acceptButton = itemCounterNumberForm:addButton(17, 10, buttonText, function()
+        callback(itemCountEdit.text and tonumber(itemCountEdit.text) or 0
     end)
+    
+    -- Инициализация суммы при создании формы
+    updateSum()
+    
     return itemCounterNumberForm
 end
 
@@ -343,7 +376,7 @@ function createMainForm(nick)
     supportButton.color = 0x5555FF
     supportButton.fontColor = 0xFFFFFF
 
-    local rulesButton = MainForm:addButton(startX + smallButtonWidth + buttonSpacing-4, 15, " ПРАВИЛА ", function()
+    local rulesButton = MainForm:addButton(startX + smallButtonWidth + buttonSpacing, 15, " ПРАВИЛА ", function()
         RulesForm:setActive()
     end)
     rulesButton.H = buttonHeight
@@ -462,7 +495,7 @@ function createSellShopSpecificForm(category)
                     createNotification(nil, message, nil, function()
                         createSellShopSpecificForm(category)
                     end)
-                end, SellShopForm, "Купить")
+                end, SellShopForm, "Купить", selectedItem.price, tonumber(shopService:getBalance(nickname)))
                 if (selectedItem) then
                     itemCounterNumberSelectForm:setActive()
                 end

@@ -493,13 +493,20 @@ function createSellShopSpecificForm(category)
                 createSellShopForm()
             end),
             createButton(" Купить ", 68, 23, function(selectedItem)
-                local itemCounterNumberSelectForm = createNumberEditForm(function(count)
-                    local _, message = shopService:sellItem(nickname, selectedItem, count)
-                    createNotification(nil, message, nil, function()
-                        createSellShopSpecificForm(category)
-                    end)
-                end, SellShopForm, "Купить", selectedItem.price, tonumber(shopService:getBalance(nickname)), true)
-                if (selectedItem) then
+                if selectedItem then
+                    local itemCounterNumberSelectForm = createNumberEditForm(
+                        function(count)
+                            local _, message = shopService:sellItem(nickname, selectedItem, count)
+                            createNotification(nil, message, nil, function()
+                                createSellShopSpecificForm(category)
+                            end)
+                        end, 
+                        SellShopForm, 
+                        "Купить", 
+                        selectedItem.price, 
+                        tonumber(shopService:getBalance(nickname)),
+                        true
+                    )
                     itemCounterNumberSelectForm:setActive()
                 end
             end)

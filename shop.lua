@@ -302,30 +302,31 @@ function createMainForm(nick)
     balanceLabel.fontSize = 1.2
 
     -- Размеры и позиции кнопок
-    local buttonWidth = 24  -- Ширина всех кнопок
-    local buttonHeight = 3  -- Высота всех кнопок
-    local startX = 5       -- Начальная позиция по X
-    local middleX = 40     -- Средняя позиция по X
-    local endX = 75        -- Конечная позиция по X (80 - buttonWidth)
+    local buttonWidth = 22      -- Ширина кнопок
+    local buttonHeight = 3      -- Высота кнопок
+    local startX = 5           -- Начальная позиция
+    local endX = 70            -- Конечная позиция (для выравнивания правого края)
+    local middleX = (startX + endX) / 2  -- Центр
 
-    -- Первый ряд кнопок (Купить и Продать) - растянуты на всю ширину
+    -- Первый ряд кнопок (КУПИТЬ и ПРОДАТЬ)
     local buyButton = MainForm:addButton(startX, 8, " КУПИТЬ ", function()
         createSellShopForm()
     end)
     buyButton.H = buttonHeight
-    buyButton.W = buttonWidth * 2 + 5  -- Ширина двух кнопок с промежутком
+    buyButton.W = buttonWidth
     buyButton.color = 0x006600
     buyButton.fontColor = 0xFFFFFF
 
-    local sellButton = MainForm:addButton(middleX, 8, " ПРОДАТЬ ", function()
+    -- Добавляем отступ между КУПИТЬ и ПРОДАТЬ
+    local sellButton = MainForm:addButton(startX + buttonWidth + 10, 8, " ПРОДАТЬ ", function()
         createBuyShopForm()
     end)
     sellButton.H = buttonHeight
-    sellButton.W = buttonWidth * 2 + 5  -- Ширина двух кнопок с промежутком
+    sellButton.W = buttonWidth
     sellButton.color = 0xFFA500
     sellButton.fontColor = 0xFFFFFF
 
-    -- Второй ряд кнопок (3 кнопки одинаковой ширины)
+    -- Второй ряд кнопок (3 кнопки с отступами)
     local supportButton = MainForm:addButton(startX, 13, " СВЯЗАТЬСЯ С НАМИ ", function()
         createSupportForm():setActive()
     end)
@@ -334,25 +335,26 @@ function createMainForm(nick)
     supportButton.color = 0x5555FF
     supportButton.fontColor = 0xFFFFFF
 
-    local rulesButton = MainForm:addButton(middleX - buttonWidth/2, 13, " ПРАВИЛА ", function()
+    -- Добавляем отступ между кнопками
+    local rulesButton = MainForm:addButton(startX + buttonWidth + 5, 13, " ПРАВИЛА ", function()
         RulesForm:setActive()
     end)
     rulesButton.H = buttonHeight
-    rulesButton.W = buttonWidth
+    rulesButton.W = buttonWidth - 5  -- Чуть уже для отступа
     rulesButton.color = 0x333333
     rulesButton.fontColor = 0xFF8F00
 
-    local exitButton = MainForm:addButton(endX - buttonWidth, 13, " ВЫХОД ", function()
+    -- Выход выравниваем по endX
+    local exitButton = MainForm:addButton(endX - buttonWidth + 5, 13, " ВЫХОД ", function()
         AutorizationForm:setActive()
     end)
     exitButton.H = buttonHeight
-    exitButton.W = buttonWidth
+    exitButton.W = buttonWidth - 5
     exitButton.color = 0xFF5555
     exitButton.fontColor = 0xFFFFFF
 
     return MainForm
 end
-
 
 function createSellShopForm()
     SellShopForm = forms.addForm()

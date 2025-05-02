@@ -157,6 +157,22 @@ function createNumberEditForm(callback, form, buttonText, pricePerItem, currentB
         sumLabel.fontColor = 0x00FF00
     end
 
+    if showCalculation then
+        -- Создаем метку суммы
+        sumLabel = { 
+            text = "Сумма: " .. string.format("%.2f", pricePerItem),
+            left = 8, 
+            top = 7,
+            fontColor = 0x00FF00
+        }
+        
+        -- Ручная отрисовка метки
+        gpu.setBackground(0x000000)
+        gpu.setForeground(sumLabel.fontColor)
+        gpu.set(sumLabel.left, sumLabel.top, sumLabel.text)
+    end
+
+
     -- Функция обновления суммы с защитой от ошибок
     local function updateSum()
         if not showCalculation then return end
@@ -164,11 +180,15 @@ function createNumberEditForm(callback, form, buttonText, pricePerItem, currentB
         local count = tonumber(itemCountEdit.text) or 0
         local sum = count * pricePerItem
         
+        -- Обновляем текст и позицию для центрирования
         sumLabel.text = "Сумма: " .. string.format("%.2f", sum)
         sumLabel.fontColor = sum > currentBalance and 0xFF0000 or 0x00FF00
         
-        -- Принудительное обновление
+        -- Очищаем старое значение
         gpu.setBackground(0x000000)
+        gpu.fill(sumLabel.left, sumLabel.top, unicode.len("Сумма: 9999.99"), 1, " ")
+        
+        -- Рисуем новое значение
         gpu.setForeground(sumLabel.fontColor)
         gpu.set(sumLabel.left, sumLabel.top, sumLabel.text)
     end

@@ -177,7 +177,7 @@ function createAutorizationForm()
     local AutorizationForm = forms.addForm()
     AutorizationForm.border = 1
     
-    local authorLabel = AutorizationForm:addLabel(32, 25, " Автор: hijabax ")
+    local authorLabel = AutorizationForm:addLabel(32, 25, " hijabax ")
     authorLabel.fontColor = 0x00FDFF
 
     -- New ASCII Art: Bober Shop
@@ -209,7 +209,7 @@ function createListForm(name, label, items, buttons, filter)
     shopFrame.H = 18
     local shopNameLabel = ShopForm:addLabel(33, 1, " Bober Shop ")
     shopNameLabel.fontColor = 0x00FDFF
-    local authorLabel = ShopForm:addLabel(32, 25, " Автор: hijabax ")
+    local authorLabel = ShopForm:addLabel(32, 25, " hijabax ")
     authorLabel.fontColor = 0x00FDFF
 
     local shopNameLabel = ShopForm:addLabel(35, 4, name)
@@ -301,7 +301,7 @@ function createMainForm(nick)
     MainForm.border = 1
     local shopNameLabel = MainForm:addLabel(33, 1, " Bober Shop ")
     shopNameLabel.fontColor = 0x00FDFF
-    local authorLabel = MainForm:addLabel(32, 25, " Автор: hijabax ")
+    local authorLabel = MainForm:addLabel(32, 25, " hijabax ")
     authorLabel.fontColor = 0x00FDFF
 
     local screenWidth = 80
@@ -372,7 +372,7 @@ function createSellShopForm()
     SellShopForm.border = 1
     local shopNameLabel = SellShopForm:addLabel(33, 1, " Bober Shop ")
     shopNameLabel.fontColor = 0x00FDFF
-    local authorLabel = SellShopForm:addLabel(32, 25, " Автор: hijabax ")
+    local authorLabel = SellShopForm:addLabel(32, 25, " hijabax ")
     authorLabel.fontColor = 0x00FDFF
 
     local buyButton2 = SellShopForm:addLabel(23, 3, " █▀▀█ █▀▀█ █ █ █  █ █▀▀█ █ █ █▀▀█ ")
@@ -636,7 +636,7 @@ function createRulesForm()
     shopFrame.H = 18
     local shopNameLabel = ShopForm:addLabel(33, 1, " Bober Shop ")
     shopNameLabel.fontColor = 0x00FDFF
-    local authorLabel = ShopForm:addLabel(32, 25, " Автор: hijabax ")
+    local authorLabel = ShopForm:addLabel(32, 25, " hijabax ")
     authorLabel.fontColor = 0x00FDFF
 
     local shopNameLabel = ShopForm:addLabel(35, 4, " Условия ")

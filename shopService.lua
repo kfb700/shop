@@ -245,7 +245,7 @@ function ShopService:new(terminalName)
             local playerData = self:getPlayerData(nick)
             playerData.balance = playerData.balance + countOfMoney
             self.db:insert(nick, playerData)
-            printD("💰 " .. nick .. " пополнил баланс на " .. countOfMoney .. " в " .. self.terminalName .. ". Баланс: " .. playerData.balance)
+            printD("💰 " .. nick .. " пополнил баланс на " .. countOfMoney .. " в " .. obj.terminalName .. ". Баланс: " .. playerData.balance)
             return playerData.balance, "Баланс пополнен на " .. countOfMoney
         end
         return 0, "Нет монет в инвентаре!"
@@ -261,7 +261,7 @@ function ShopService:new(terminalName)
         if countOfMoney > 0 then
             playerData.balance = playerData.balance - countOfMoney
             self.db:insert(nick, playerData)
-            printD("💸 " .. nick .. " снял " .. countOfMoney .. " в " .. self.terminalName .. ". Баланс: " .. playerData.balance)
+            printD("💸 " .. nick .. " снял " .. countOfMoney .. " в " .. obj.terminalName .. ". Баланс: " .. playerData.balance)
             return countOfMoney, "С баланса списано " .. countOfMoney
         end
         
@@ -274,9 +274,9 @@ function ShopService:new(terminalName)
         if not playerDataList or not playerDataList[1] then
             local newPlayer = {_id = nick, balance = 0, items = {}}
             if not self.db:insert(nick, newPlayer) then
-                printD("⚠️ Ошибка создания игрока " .. nick .. " в " .. self.terminalName)
+                printD("⚠️ Ошибка создания игрока " .. nick .. " в " .. obj.terminalName)
             else
-                printD("🆕 Новый игрок " .. nick .. " зарегистрирован в " .. self.terminalName)
+                printD("🆕 Новый игрок " .. nick .. " зарегистрирован в " .. obj.terminalName)
             end
             return newPlayer
         end
@@ -300,7 +300,7 @@ function ShopService:new(terminalName)
                 self.db:update(nick, playerData)
                 
                 if withdrawedCount > 0 then
-                    printD("📤 " .. nick .. " забрал " .. id .. ":" .. dmg .. " (x" .. withdrawedCount .. ") из " .. self.terminalName)
+                    printD("📤 " .. nick .. " забрал " .. id .. ":" .. dmg .. " (x" .. withdrawedCount .. ") из " .. obj.terminalName)
                 end
                 return withdrawedCount, "Выдано " .. withdrawedCount .. " предметов"
             end
@@ -321,7 +321,7 @@ function ShopService:new(terminalName)
             playerData.balance = playerData.balance - (itemsCount * itemCfg.price)
             self.db:update(nick, playerData)
             local itemName = itemCfg.label or (itemCfg.id .. ":" .. itemCfg.dmg)
-            printD("```:green_circle:" .. nick .. " купил " .. itemName .. " (x" .. itemsCount .. ") по " .. itemCfg.price .. " в " .. self.terminalName .. ". Баланс: ```" .. playerData.balance)
+            printD(":green_circle:" "``` **" .. nick .. "** купил " .. itemName .. " (x" .. itemsCount .. ") по " .. itemCfg.price .. " в " .. obj.terminalName .. ". Баланс: ```" .. playerData.balance "```")
             return itemsCount, "Куплено " .. itemsCount .. " предметов!"
         end
         return 0, "Ошибка выдачи предмета"
@@ -334,12 +334,12 @@ function ShopService:new(terminalName)
             playerData.balance = playerData.balance + (itemsCount * itemCfg.price)
             
             if not self.db:update(nick, playerData) then
-                printD("⚠️ Ошибка сохранения баланса для " .. nick .. " в " .. self.terminalName)
+                printD("⚠️ Ошибка сохранения баланса для " .. nick .. " в " .. obj.terminalName)
                 return 0, "Ошибка сервера"
             end
             
             local itemName = itemCfg.label or (itemCfg.id .. ":" .. itemCfg.dmg)
-            printD("```:orange_circle: " .. nick .. " продал " .. itemName .. " (x" .. itemsCount .. ") по " .. itemCfg.price .. " в " .. self.terminalName .. ". Баланс: ```" .. playerData.balance)
+            printD(":green_circle:" "``` **" .. nick .. "** продал " .. itemName .. " (x" .. itemsCount .. ") по " .. itemCfg.price .. " в " .. obj.terminalName .. ". Баланс: ```" .. playerData.balance"```")
             return itemsCount, "Продано "..itemsCount.." предметов"
         end
         return 0, "Не удалось принять предметы"
@@ -361,7 +361,7 @@ function ShopService:new(terminalName)
             end
             
             if withdrawedCount > 0 then
-                printD("📦 " .. nick .. " забрал " .. item.id .. ":" .. item.dmg .. " (x" .. withdrawedCount .. ") из " .. self.terminalName)
+                printD("📦 " .. nick .. " забрал " .. item.id .. ":" .. item.dmg .. " (x" .. withdrawedCount .. ") из " .. obj.terminalName)
             end
         end
         
@@ -397,7 +397,7 @@ function ShopService:new(terminalName)
                 end
             end
             
-            printD("♻️ " .. nick .. " обменял " .. itemCfg.fromId .. ":" .. itemCfg.fromDmg .. " (x" .. item.count .. ") на " .. itemCfg.toId .. ":" .. itemCfg.toDmg .. " в " .. self.terminalName)
+            printD("♻️ " .. nick .. " обменял " .. itemCfg.fromId .. ":" .. itemCfg.fromDmg .. " (x" .. item.count .. ") на " .. itemCfg.toId .. ":" .. itemCfg.toDmg .. " в " .. obj.terminalName)
             
             local found = false
             for _, storedItem in ipairs(playerData.items) do
@@ -450,7 +450,7 @@ function ShopService:new(terminalName)
             end
             
             self.db:update(nick, playerData)
-            printD("♻️ " .. nick .. " обменял " .. itemConfig.fromId .. ":" .. itemConfig.fromDmg .. " (x" .. countOfItems .. ") на " .. itemConfig.toId .. ":" .. itemConfig.toDmg .. " в " .. self.terminalName)
+            printD("♻️ " .. nick .. " обменял " .. itemConfig.fromId .. ":" .. itemConfig.fromDmg .. " (x" .. countOfItems .. ") на " .. itemConfig.toId .. ":" .. itemConfig.toDmg .. " в " .. obj.terminalName)
             return countOfItems, "Обменяно " .. countOfItems .. " руд на слитки.", "Заберите из корзины"
         end
         return 0, "Нет руд в инвентаре!"
@@ -506,7 +506,7 @@ function ShopService:new(terminalName)
                 })
             end
             
-            printD("🔄 " .. nick .. " обменял " .. itemConfig.fromId .. ":" .. itemConfig.fromDmg .. " (x" .. countOfItems .. ") на " .. itemConfig.toId .. ":" .. itemConfig.toDmg .. " в " .. self.terminalName)
+            printD("🔄 " .. nick .. " обменял " .. itemConfig.fromId .. ":" .. itemConfig.fromDmg .. " (x" .. countOfItems .. ") на " .. itemConfig.toId .. ":" .. itemConfig.toDmg .. " в " .. obj.terminalName)
         end
         
         if updated then

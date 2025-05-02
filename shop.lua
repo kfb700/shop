@@ -145,29 +145,25 @@ function createNumberEditForm(callback, form, buttonText, pricePerItem, currentB
     if showCalculation then
         balanceLabel = itemCounterNumberForm:addLabel(8, 2, "Баланс: " .. string.format("%.2f", currentBalance))
         balanceLabel.fontColor = 0xFFFFFF
+        
+        sumLabel = itemCounterNumberForm:addLabel(8, 8, "Сумма: 0.00")
+        sumLabel.fontColor = 0x00FF00
     end
     
     itemCounterNumberForm:addLabel(8, 4, "Введите количество")
     itemCountEdit = itemCounterNumberForm:addEdit(8, 5)
     itemCountEdit.W = 18
     itemCountEdit.text = "1"  -- Начальное значение
-    
 
     -- Функция обновления суммы с защитой от ошибок
     local function updateSum()
-        if not showCalculation then return end
+        if not showCalculation or not sumLabel then return end
         
         local count = tonumber(itemCountEdit.text) or 0
         local sum = count * pricePerItem
         
-        sumLabel.text = "Сумма2: " .. string.format(1, 8, "%.2f", sum)
+        sumLabel.text = "Сумма: " .. string.format("%.2f", sum)
         sumLabel.fontColor = sum > currentBalance and 0xFF0000 or 0x00FF00
-
-
-        if showCalculation then
-            sumLabel = itemCounterNumberForm:addLabel(1, 8, "Сумма1: " .. string.format("%.2f", sum))
-            sumLabel.fontColor = 0x00FF00
-        end
         
         -- Принудительное обновление
         gpu.setBackground(0x000000)
@@ -202,7 +198,7 @@ function createNumberEditForm(callback, form, buttonText, pricePerItem, currentB
     local acceptButton = itemCounterNumberForm:addButton(17, showCalculation and 10 or 8, buttonText or "Принять", function()
         if updateTimer then pcall(function() updateTimer:stop() end) end
         local count = math.floor(tonumber(itemCountEdit.text) or 1)
-        callback(math.max(1, count))  -- Минимум 1 предмет
+        if callback then callback(math.max(1, count)) end  -- Минимум 1 предмет
     end)
 
     -- Первоначальное обновление
@@ -233,7 +229,7 @@ function createAutorizationForm()
     AutorizationForm:addLabel(22, 20, "███████║██║  ██║╚██████╔╝██║             ")
     AutorizationForm:addLabel(22, 21, "╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚═╝             ")
     
-    AutorizationForm:addLabel(22, 23, "     ↓  Встаньте на PIM 12   ↓       ")
+    AutorizationForm:addLabel(22, 23, "     ↓  Встаньте на PIM 13   ↓       ")
     authorLabel.fontColor = 0x00FDFF
 
     return AutorizationForm

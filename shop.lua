@@ -186,11 +186,15 @@ function createNumberEditForm(callback, form, buttonText, pricePerItem, currentB
         updateSum() -- Обновляем при каждом вводе
     end
 
-    -- Таймер как fallback (обновление каждые 500 мс)
+    -- Инициализация таймера перед использованием
     updateTimer = itemCounterNumberForm:addTimer(0.5, function()
         updateSum()
     end)
-    updateTimer:start()
+    
+    -- Запуск таймера только после инициализации
+    if updateTimer then 
+        updateTimer:start()
+    end
 
     -- Кнопки
     local backButton = itemCounterNumberForm:addButton(3, showCalculation and 10 or 8, " Назад ", function()

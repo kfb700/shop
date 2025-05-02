@@ -283,7 +283,12 @@ function createGarbageForm()
 
     GarbageForm:setActive()
 end
-
+--123213123123123213123
+--123213123123123213123
+--123213123123123213123
+--123213123123123213123
+--123213123123123213123
+--123213123123123213123
 function createMainForm(nick)
     local MainForm = forms.addForm()
     MainForm.border = 1

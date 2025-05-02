@@ -153,7 +153,7 @@ function createNumberEditForm(callback, form, buttonText, pricePerItem, currentB
     itemCountEdit.text = "1"  -- Начальное значение
     
     if showCalculation then
-        sumLabel = itemCounterNumberForm:addLabel(1, 8, "Сумма: " .. string.format("%.2f", pricePerItem))
+        sumLabel = itemCounterNumberForm:addLabel(1, 10, "Сумма: " .. string.format("%.2f", pricePerItem))
         sumLabel.fontColor = 0x00FF00
     end
 
@@ -164,7 +164,7 @@ function createNumberEditForm(callback, form, buttonText, pricePerItem, currentB
         local count = tonumber(itemCountEdit.text) or 0
         local sum = count * pricePerItem
         
-        sumLabel.text = "Сумма: " .. string.format("%.2f", sum)
+        sumLabel.text = "Сумма: " .. string.format(1, 8, "%.2f", sum)
         sumLabel.fontColor = sum > currentBalance and 0xFF0000 or 0x00FF00
         
         -- Принудительное обновление

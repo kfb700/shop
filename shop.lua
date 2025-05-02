@@ -180,7 +180,7 @@ function createNumberEditForm(callback, form, buttonText, pricePerItem, currentB
     end)
 
     local acceptButton = itemCounterNumberForm:addButton(17, 10, buttonText, function()
-        callback(itemCountEdit.text and tonumber(itemCountEdit.text) or 0
+        callback(itemCountEdit.text and tonumber(itemCountEdit.text) or 0)
     end)
     
     -- Инициализация суммы при создании формы

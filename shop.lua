@@ -152,26 +152,21 @@ function createNumberEditForm(callback, form, buttonText, pricePerItem, currentB
     itemCountEdit.W = 18
     itemCountEdit.text = "1"  -- Начальное значение
     
-    if showCalculation then
-        sumLabel = itemCounterNumberForm:addLabel(16, 7, "Сумма: " .. string.format("%.2f", pricePerItem))
-        sumLabel.fontColor = 0x00FF00
-    end
 
-    if showCalculation then
-        -- Создаем метку суммы
-        sumLabel = { 
-            text = "Сумма: " .. string.format("%.2f", pricePerItem),
-            left = 8, 
-            top = 7,
-            fontColor = 0x00FF00
-        }
+    local function updateSum()
+        if not showCalculation then return end
         
-        -- Ручная отрисовка метки
+        local count = tonumber(itemCountEdit.text) or 0
+        local sum = count * pricePerItem
+        
+        sumLabel.text = "Сумма: " .. string.format("%.2f", sum)
+        sumLabel.fontColor = sum > currentBalance and 0xFF0000 or 0x00FF00
+        
+        -- Принудительное обновление
         gpu.setBackground(0x000000)
         gpu.setForeground(sumLabel.fontColor)
         gpu.set(sumLabel.left, sumLabel.top, sumLabel.text)
     end
-
 
 
 
@@ -234,7 +229,7 @@ function createAutorizationForm()
     AutorizationForm:addLabel(22, 20, "███████║██║  ██║╚██████╔╝██║             ")
     AutorizationForm:addLabel(22, 21, "╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚═╝             ")
     
-    AutorizationForm:addLabel(22, 23, "     ↓  Встаньте на PIM 1   ↓       ")
+    AutorizationForm:addLabel(22, 23, "     ↓  Встаньте на PIM 2   ↓       ")
     authorLabel.fontColor = 0x00FDFF
 
     return AutorizationForm

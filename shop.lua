@@ -292,80 +292,58 @@ function createMainForm(nick)
     local authorLabel = MainForm:addLabel(32, 25, " Автор: hijabax ")
     authorLabel.fontColor = 0x00FDFF
 
-    -- Размеры экрана
-    local screenWidth = 80
-    local screenHeight = 25
+    -- Информация о пользователе
+    MainForm:addLabel(5, 4, "Ваш ник: ")
+    MainForm:addLabel(17, 4, nick)
+    MainForm:addLabel(5, 6, "Баланс: ")
+    MainForm:addLabel(17, 6, shopService:getBalance(nick))
 
-    -- Информация о пользователе (смещена вниз)
-    MainForm:addLabel(5, 5, "Ваш ник: ").fontSize = 1.2
-    local nickLabel = MainForm:addLabel(20, 5, nick)
-    nickLabel.fontSize = 1.2
-    
-    MainForm:addLabel(5, 7, "Баланс: ").fontSize = 1.2
-    local balanceLabel = MainForm:addLabel(20, 7, shopService:getBalance(nick))
-    balanceLabel.fontSize = 1.2
-
-    -- Параметры кнопок
-    local buttonHeight = 3
-    local smallButtonWidth = 22
-    local largeButtonWidth = 34  -- Ширина для больших кнопок
-    
-    -- Позиционирование (рассчитано для 80-символьной ширины)
-    local startX = 5
-    local endX = 75  -- 80 - 5 (отступ)
-    
-    -- Первый ряд кнопок (КУПИТЬ и ПРОДАТЬ) - начинаются на 10 строке
-    local buyButton = MainForm:addButton(startX, 10, " КУПИТЬ ", function()
+    -- Основные кнопки
+    local buyButton = MainForm:addButton(15, 10, " Купить ", function()
         createSellShopForm()
     end)
-    buyButton.H = buttonHeight
-    buyButton.W = largeButtonWidth
+    buyButton.H = 3
+    buyButton.W = 25
     buyButton.color = 0x006600
     buyButton.fontColor = 0xFFFFFF
 
-    -- ПРОДАТЬ выравниваем по правому краю (как ВЫХОД)
-    local sellButton = MainForm:addButton(endX - largeButtonWidth, 10, " ПРОДАТЬ ", function()
+    local depositButton = MainForm:addButton(45, 10, " Пополнить баланс ", function()
         createBuyShopForm()
     end)
-    sellButton.H = buttonHeight
-    sellButton.W = largeButtonWidth
-    sellButton.color = 0xFFA500
-    sellButton.fontColor = 0xFFFFFF
+    depositButton.H = 3
+    depositButton.W = 25
+    depositButton.color = 0xFFA500
+    depositButton.fontColor = 0xFFFFFF
 
-    -- Второй ряд кнопок (3 кнопки) - начинаются на 15 строке
-    local buttonSpacing = 4  -- Расстояние между кнопками
-    
-    local supportButton = MainForm:addButton(startX, 15, " СВЯЗАТЬСЯ С НАМИ ", function()
-        createSupportForm():setActive()
-    end)
-    supportButton.H = buttonHeight
-    supportButton.W = smallButtonWidth
-    supportButton.color = 0x5555FF
-    supportButton.fontColor = 0xFFFFFF
-
-    local rulesButton = MainForm:addButton(
-    math.floor((screenWidth - smallButtonWidth) / 2+3,  -- X-позиция (центр экрана)
-    15,                                              -- Y-позиция
-    " ПРАВИЛА ", 
-    function()
+    -- Кнопка с условиями
+    local rulesButton = MainForm:addButton(5, 15, " Используя магазин вы соглашаетесь с условиями ", function()
         RulesForm:setActive()
-    end
-)
-    rulesButton.H = buttonHeight
-    rulesButton.W = smallButtonWidth
+    end)
+    rulesButton.H = 3
+    rulesButton.W = 70
     rulesButton.color = 0x333333
     rulesButton.fontColor = 0xFF8F00
 
-    local exitButton = MainForm:addButton(endX - smallButtonWidth, 15, " ВЫХОД ", function()
+    -- Нижний ряд кнопок
+    local supportButton = MainForm:addButton(5, 20, " Связаться с нами ", function()
+        createSupportForm():setActive()
+    end)
+    supportButton.H = 3
+    supportButton.W = 25
+    supportButton.color = 0x5555FF
+    supportButton.fontColor = 0xFFFFFF
+
+    local exitButton = MainForm:addButton(50, 20, " Выход ", function()
         AutorizationForm:setActive()
     end)
-    exitButton.H = buttonHeight
-    exitButton.W = smallButtonWidth
+    exitButton.H = 3
+    exitButton.W = 25
     exitButton.color = 0xFF5555
     exitButton.fontColor = 0xFFFFFF
 
     return MainForm
 end
+
 
 function createSellShopForm()
     SellShopForm = forms.addForm()
@@ -694,3 +672,5 @@ local Event1 = AutorizationForm:addEvent("player_off", function(e, p)
 end)
 
 forms.run(AutorizationForm) --запускаем gui
+
+

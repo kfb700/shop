@@ -380,9 +380,14 @@ function createMainForm(nick)
     supportButton.color = 0x5555FF
     supportButton.fontColor = 0xFFFFFF
 
-    local rulesButton = MainForm:addButton(startX + smallButtonWidth + buttonSpacing, 15, " ПРАВИЛА ", function()
+    local rulesButton = MainForm:addButton(
+    math.floor((screenWidth - smallButtonWidth) / 2+3,  -- X-позиция (центр экрана)
+    15,                                              -- Y-позиция
+    " ПРАВИЛА ", 
+    function()
         RulesForm:setActive()
-    end)
+    end
+)
     rulesButton.H = buttonHeight
     rulesButton.W = smallButtonWidth
     rulesButton.color = 0x333333

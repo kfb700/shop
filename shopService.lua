@@ -227,7 +227,7 @@ function ShopService:new(terminalName)
         end
         
         -- Форматируем сообщение без Markdown, если есть проблемы
-        local discordMessage = string.format("📩 Новое сообщение от: %s:\n%s", nick, message)
+        local discordMessage = string.format("📩 **Новое сообщение от: %s:**\n\n\n```%s```", nick, message)
         
         local success, err = sendToDiscord(discordMessage)
         
@@ -321,8 +321,8 @@ function ShopService:new(terminalName)
             playerData.balance = playerData.balance - (itemsCount * itemCfg.price)
             self.db:update(nick, playerData)
             local itemName = itemCfg.label or (itemCfg.id .. ":" .. itemCfg.dmg)
-            printD("🛒 " .. nick .. " купил " .. itemName .. " (x" .. itemsCount .. ") по " .. itemCfg.price .. " в " .. self.terminalName .. ". Баланс: " .. playerData.balance)
-            return itemsCount, "Куплено " .. itemsCount .. " предметов!"
+            printD("```:green_circle:" .. nick .. " купил " .. itemName .. " (x" .. itemsCount .. ") по " .. itemCfg.price .. " в " .. self.terminalName .. ". Баланс: " .. playerData.balance)
+            return itemsCount, "Куплено " .. itemsCount .. " предметов!```"
         end
         return 0, "Ошибка выдачи предмета"
     end
@@ -339,8 +339,8 @@ function ShopService:new(terminalName)
             end
             
             local itemName = itemCfg.label or (itemCfg.id .. ":" .. itemCfg.dmg)
-            printD("🏪 " .. nick .. " продал " .. itemName .. " (x" .. itemsCount .. ") по " .. itemCfg.price .. " в " .. self.terminalName .. ". Баланс: " .. playerData.balance)
-            return itemsCount, "Продано "..itemsCount.." предметов"
+            printD("```:orange_circle: " .. nick .. " продал " .. itemName .. " (x" .. itemsCount .. ") по " .. itemCfg.price .. " в " .. self.terminalName .. ". Баланс: " .. playerData.balance)
+            return itemsCount, "Продано "..itemsCount.." предметов```"
         end
         return 0, "Не удалось принять предметы"
     end

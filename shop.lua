@@ -292,72 +292,46 @@ function createMainForm(nick)
     local authorLabel = MainForm:addLabel(32, 25, " Автор: hijabax ")
     authorLabel.fontColor = 0x00FDFF
 
-    -- Размеры экрана
+    -- Размеры и отступы
     local screenWidth = 80
-
-    -- Информация о пользователе (смещена вниз)
-    MainForm:addLabel(5, 6, "Ваш ник: ").fontSize = 1.2  -- Смещено вниз
-    local nickLabel = MainForm:addLabel(20, 6, nick)
-    nickLabel.fontSize = 1.2
-    
-    MainForm:addLabel(5, 8, "Баланс: ").fontSize = 1.2  -- Смещено вниз
-    local balanceLabel = MainForm:addLabel(20, 8, shopService:getBalance(nick))
-    balanceLabel.fontSize = 1.2
-
-    -- Параметры кнопок
     local buttonHeight = 3
-    local largeButtonWidth = 34
-    local smallButtonWidth = 22
-    
-    -- Позиционирование
-    local startX = 5
-    local endX = 75
-    local buttonSpacing = 8  -- Увеличенный отступ между кнопками
+    local largeBtnWidth = 34
+    local smallBtnWidth = 22
+    local margin = 5          -- Базовый отступ от краёв
+    local btnSpacing = 10      -- Отступ между кнопками
 
-    -- Первый ряд кнопок (КОПИТЬ и ПРОДАТЬ) - строка 12 (смещено вниз)
-    local buyButton = MainForm:addButton(startX, 12, " КОПИТЬ ", function()
+    -- Информация о пользователе
+    MainForm:addLabel(margin, 6, "Ваш ник:").fontSize = 1.2
+    MainForm:addLabel(margin+15, 6, nick).fontSize = 1.2
+    MainForm:addLabel(margin, 8, "Баланс:").fontSize = 1.2
+    MainForm:addLabel(margin+15, 8, shopService:getBalance(nick)).fontSize = 1.2
+
+    -- Первый ряд кнопок (КОПИТЬ/ПРОДАТЬ)
+    MainForm:addButton(margin, 12, " КОПИТЬ ", function()
         createSellShopForm()
-    end)
-    buyButton.H = buttonHeight
-    buyButton.W = largeButtonWidth
-    buyButton.color = 0x006600
-    buyButton.fontColor = 0xFFFFFF
+    end).H, .W, .color, .fontColor = buttonHeight, largeBtnWidth, 0x006600, 0xFFFFFF
 
-    local sellButton = MainForm:addButton(endX - largeButtonWidth, 12, " ПРОДАТЬ ", function()
+    MainForm:addButton(screenWidth-margin-largeBtnWidth, 12, " ПРОДАТЬ ", function()
         createBuyShopForm()
-    end)
-    sellButton.H = buttonHeight
-    sellButton.W = largeButtonWidth
-    sellButton.color = 0xFFA500
-    sellButton.fontColor = 0xFFFFFF
+    end).H, .W, .color, .fontColor = buttonHeight, largeBtnWidth, 0xFFA500, 0xFFFFFF
 
-    -- Второй ряд кнопок (3 кнопки) - строка 17 (смещено вниз)
-    -- СВЯЗАТЬСЯ С НАМИ (левая кнопка)
-    local supportButton = MainForm:addButton(startX, 17, " СВЯЗАТЬСЯ С НАМИ ", function()
+    -- Второй ряд кнопок (3 кнопки с отступами)
+    local btnY = 17  -- Позиция по Y
+    
+    -- 1. СВЯЗАТЬСЯ С НАМИ (крайняя левая)
+    MainForm:addButton(margin, btnY, " СВЯЗАТЬСЯ С НАМИ ", function()
         createSupportForm():setActive()
-    end)
-    supportButton.H = buttonHeight
-    supportButton.W = smallButtonWidth
-    supportButton.color = 0x5555FF
-    supportButton.fontColor = 0xFFFFFF
+    end).H, .W, .color, .fontColor = buttonHeight, smallBtnWidth, 0x5555FF, 0xFFFFFF
 
-    -- ПРАВИЛА (центральная кнопка)
-    local rulesButton = MainForm:addButton(startX + smallButtonWidth + buttonSpacing - 2, 17, " ПРАВИЛА ", function()
+    -- 2. ПРАВИЛА (центр с отступом 12 символов от предыдущей)
+    MainForm:addButton(margin + smallBtnWidth + 12, btnY, " ПРАВИЛА ", function()
         RulesForm:setActive()
-    end)
-    rulesButton.H = buttonHeight
-    rulesButton.W = smallButtonWidth
-    rulesButton.color = 0x333333
-    rulesButton.fontColor = 0xFF8F00
+    end).H, .W, .color, .fontColor = buttonHeight, smallBtnWidth, 0x333333, 0xFF8F00
 
-    -- ВЫХОД (правая кнопка)
-    local exitButton = MainForm:addButton(endX - smallButtonWidth, 17, " ВЫХОД ", function()
+    -- 3. ВЫХОД (крайняя правая с отступом 12 символов от ПРАВИЛА)
+    MainForm:addButton(screenWidth-margin-smallBtnWidth, btnY, " ВЫХОД ", function()
         AutorizationForm:setActive()
-    end)
-    exitButton.H = buttonHeight
-    exitButton.W = smallButtonWidth
-    exitButton.color = 0xFF5555
-    exitButton.fontColor = 0xFFFFFF
+    end).H, .W, .color, .fontColor = buttonHeight, smallBtnWidth, 0xFF5555, 0xFFFFFF
 
     return MainForm
 end

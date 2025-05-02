@@ -74,7 +74,7 @@ function createSupportForm()
         local remaining = 500 - unicode.len(text)
         charCountLabel.text = "Осталось символов: " .. remaining
         charCountLabel.fontColor = remaining < 0 and 0xFF0000 or 0xFFFFFF
-        supportForm:draw()
+        supportForm:draw() -- Перерисовываем форму вместо вызова update
     end
     
     local backButton = supportForm:addButton(3, 13, " Назад ", function()
@@ -127,50 +127,90 @@ function createNotification(status, text, secondText, callback)
     notificationForm:setActive()
 end
 
-function createNumberEditForm(callback, parentForm, buttonText, pricePerItem, currentBalance)
-    local numForm = forms:addForm()
-    numForm.border = 2
-    numForm.W = 31
-    numForm.H = 10
-    numForm.left = math.floor((parentForm.W - numForm.W) / 2)
-    numForm.top = math.floor((parentForm.H - numForm.H) / 2)
+function createNumberEditForm(callback, form, buttonText, pricePerItem, currentBalance, showCalculation)
+    -- Проверка и инициализация цены
+    pricePerItem = tonumber(pricePerItem) or 0
+    currentBalance = tonumber(currentBalance) or 0
 
-    numForm:addLabel(8, 2, "Баланс: " .. string.format("%.2f", currentBalance or 0))
-    numForm:addLabel(8, 4, "Введите количество")
-    
-    local edit = numForm:addEdit(8, 5)
-    edit.W = 18
-    edit.text = "1"
-    
-    local sumLabel = numForm:addLabel(8, 7, "Сумма: " .. string.format("%.2f", pricePerItem or 0))
-    sumLabel.fontColor = 0x00FF00
+    local itemCounterNumberForm = forms:addForm()
+    itemCounterNumberForm.border = 2
+    itemCounterNumberForm.W = 31
+    itemCounterNumberForm.H = showCalculation and 12 or 10
+    itemCounterNumberForm.left = math.floor((form.W - itemCounterNumberForm.W) / 2)
+    itemCounterNumberForm.top = math.floor((form.H - itemCounterNumberForm.H) / 2)
 
-    local function updateSum()
-        local count = tonumber(edit.text) or 0
-        local sum = count * (pricePerItem or 0)
-        sumLabel.text = "Сумма: " .. string.format("%.2f", sum)
-        sumLabel.fontColor = sum > (currentBalance or 0) and 0xFF0000 or 0x00FF00
-        numForm:draw()
+    -- Элементы интерфейса
+    local balanceLabel, itemCountEdit, sumLabel
+    
+    if showCalculation then
+        balanceLabel = itemCounterNumberForm:addLabel(8, 2, "Баланс: " .. string.format("%.2f", currentBalance))
+        balanceLabel.fontColor = 0xFFFFFF
+    end
+    
+    itemCounterNumberForm:addLabel(8, 4, "Введите количество")
+    itemCountEdit = itemCounterNumberForm:addEdit(8, 5)
+    itemCountEdit.W = 18
+    itemCountEdit.text = "1"  -- Начальное значение
+    
+    if showCalculation then
+        sumLabel = itemCounterNumberForm:addLabel(8, 7, "Сумма: " .. string.format("%.2f", pricePerItem))
+        sumLabel.fontColor = 0x00FF00
     end
 
-    edit.onInput = updateSum
-    edit.onChange = updateSum
+    -- Функция обновления суммы с защитой от ошибок
+    local function updateSum()
+        if not showCalculation then return end
+        
+        local count = tonumber(itemCountEdit.text) or 0
+        local sum = count * pricePerItem
+        
+        sumLabel.text = "Сумма: " .. string.format("%.2f", sum)
+        sumLabel.fontColor = sum > currentBalance and 0xFF0000 or 0x00FF00
+        
+        -- Принудительное обновление
+        gpu.setBackground(0x000000)
+        gpu.setForeground(sumLabel.fontColor)
+        gpu.set(sumLabel.left, sumLabel.top, sumLabel.text)
+    end
 
-    numForm:addButton(3, 8, " Назад ", function()
-        parentForm:setActive()
+    -- Обработчики событий
+    itemCountEdit.onInput = function(text)
+        updateSum()
+    end
+
+    itemCountEdit.onChange = function(text)
+        updateSum()
+    end
+
+    -- Таймер обновления (если нужно)
+    local updateTimer
+    if showCalculation then
+        updateTimer = itemCounterNumberForm:addTimer(0.2, updateSum)
+        if updateTimer then
+            pcall(function() updateTimer:start() end)  -- Защищенный вызов
+        end
+    end
+
+    -- Кнопки
+    local backButton = itemCounterNumberForm:addButton(3, showCalculation and 10 or 8, " Назад ", function()
+        if updateTimer then pcall(function() updateTimer:stop() end) end
+        form:setActive()
     end)
 
-    numForm:addButton(17, 8, buttonText or "Принять", function()
-        callback(math.max(1, tonumber(edit.text) or 1))
+    local acceptButton = itemCounterNumberForm:addButton(17, showCalculation and 10 or 8, buttonText or "Принять", function()
+        if updateTimer then pcall(function() updateTimer:stop() end) end
+        local count = math.floor(tonumber(itemCountEdit.text) or 1)
+        callback(math.max(1, count))  -- Минимум 1 предмет
     end)
 
-    updateSum()
+    -- Первоначальное обновление
+    if showCalculation then updateSum() end
 
-    return numForm
+    return itemCounterNumberForm
 end
 
 function createAutorizationForm()
-    local AutorizationForm = forms:addForm()
+    local AutorizationForm = forms.addForm()
     AutorizationForm.border = 1
     
     local authorLabel = AutorizationForm:addLabel(32, 25, " Автор: hijabax ")
@@ -198,7 +238,7 @@ function createAutorizationForm()
 end
 
 function createListForm(name, label, items, buttons, filter)
-    local ShopForm = forms:addForm()
+    local ShopForm = forms.addForm()
     ShopForm.border = 1
     local shopFrame = ShopForm:addFrame(3, 5, 1)
     shopFrame.W = 76
@@ -213,7 +253,7 @@ function createListForm(name, label, items, buttons, filter)
     local itemList = ShopForm:addList(5, 7, function() end)
 
     for i = 1, #items do
-        if (not filter or (unicode.lower(items[i].displayName):find(unicode.lower(filter))) then
+        if (not filter or (unicode.lower(items[i].displayName):find(unicode.lower(filter)))) then
             itemList:insert(items[i].displayName, items[i])
         end
     end
@@ -293,7 +333,7 @@ function createGarbageForm()
 end
 
 function createMainForm(nick)
-    local MainForm = forms:addForm()
+    local MainForm = forms.addForm()
     MainForm.border = 1
     local shopNameLabel = MainForm:addLabel(33, 1, " Bober Shop ")
     shopNameLabel.fontColor = 0x00FDFF
@@ -364,7 +404,7 @@ function createMainForm(nick)
 end
 
 function createSellShopForm()
-    SellShopForm = forms:addForm()
+    SellShopForm = forms.addForm()
     SellShopForm.border = 1
     local shopNameLabel = SellShopForm:addLabel(33, 1, " Bober Shop ")
     shopNameLabel.fontColor = 0x00FDFF
@@ -466,7 +506,7 @@ function createSellShopSpecificForm(category)
                         createNotification(nil, message, nil, function()
                             createSellShopSpecificForm(category)
                         end)
-                    end, SellShopSpecificForm, "Купить", selectedItem.price, currentBalance)
+                    end, SellShopSpecificForm, "Купить", selectedItem.price, currentBalance, true)
                     itemCounterNumberSelectForm:setActive()
                 end
             end)
@@ -508,7 +548,7 @@ function createBuyShopForm()
                         createNotification(nil, message, nil, function()
                             createBuyShopForm()
                         end)
-                    end, BuyShopForm, "Продать")
+                    end, BuyShopForm, "Продать", nil, nil, false)
                     itemCounterNumberSelectForm:setActive()
                 end
             end),
@@ -576,7 +616,7 @@ function createOreExchangerForm()
                         createNotification(nil, message, message2, function()
                             createOreExchangerForm()
                         end)
-                    end, OreExchangerForm, "Обменять")
+                    end, OreExchangerForm, "Обменять", nil, nil, false)
                     itemCounterNumberSelectForm:setActive()
                 end
             end)
@@ -625,7 +665,7 @@ function createExchangerForm()
 end
 
 function createRulesForm()
-    local ShopForm = forms:addForm()
+    local ShopForm = forms.addForm()
     ShopForm.border = 1
     local shopFrame = ShopForm:addFrame(3, 5, 1)
     shopFrame.W = 76

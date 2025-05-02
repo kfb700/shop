@@ -294,75 +294,47 @@ function createMainForm(nick)
 
     -- Размеры экрана
     local screenWidth = 80
-    local screenHeight = 25
+    local centerX = math.floor(screenWidth / 2)  -- Центр экрана
 
-    -- Информация о пользователе (смещена вниз)
+    -- Информация о пользователе
     MainForm:addLabel(5, 5, "Ваш ник: ").fontSize = 1.2
-    local nickLabel = MainForm:addLabel(20, 5, nick)
-    nickLabel.fontSize = 1.2
-    
+    MainForm:addLabel(20, 5, nick).fontSize = 1.2
     MainForm:addLabel(5, 7, "Баланс: ").fontSize = 1.2
-    local balanceLabel = MainForm:addLabel(20, 7, shopService:getBalance(nick))
-    balanceLabel.fontSize = 1.2
+    MainForm:addLabel(20, 7, shopService:getBalance(nick)).fontSize = 1.2
 
     -- Параметры кнопок
     local buttonHeight = 3
     local smallButtonWidth = 22
-    local largeButtonWidth = 34  -- Ширина для больших кнопок
-    
-    -- Позиционирование (рассчитано для 80-символьной ширины)
-    local startX = 5
-    local endX = 75  -- 80 - 5 (отступ)
-    
-    -- Первый ряд кнопок (КУПИТЬ и ПРОДАТЬ) - начинаются на 10 строке
-    local buyButton = MainForm:addButton(startX, 10, " КУПИТЬ ", function()
+    local largeButtonWidth = 34
+    local buttonSpacing = 8  -- Отступ между кнопками (как между КУПИТЬ и ПРОДАТЬ)
+
+    -- Первый ряд кнопок (КУПИТЬ и ПРОДАТЬ)
+    MainForm:addButton(centerX - largeButtonWidth - buttonSpacing/2, 10, " КУПИТЬ ", function()
         createSellShopForm()
-    end)
-    buyButton.H = buttonHeight
-    buyButton.W = largeButtonWidth
-    buyButton.color = 0x006600
-    buyButton.fontColor = 0xFFFFFF
+    end).H, .W, .color, .fontColor = buttonHeight, largeButtonWidth, 0x006600, 0xFFFFFF
 
-    -- ПРОДАТЬ выравниваем по правому краю (как ВЫХОД)
-    local sellButton = MainForm:addButton(endX - largeButtonWidth, 10, " ПРОДАТЬ ", function()
+    MainForm:addButton(centerX + buttonSpacing/2, 10, " ПРОДАТЬ ", function()
         createBuyShopForm()
-    end)
-    sellButton.H = buttonHeight
-    sellButton.W = largeButtonWidth
-    sellButton.color = 0xFFA500
-    sellButton.fontColor = 0xFFFFFF
+    end).H, .W, .color, .fontColor = buttonHeight, largeButtonWidth, 0xFFA500, 0xFFFFFF
 
-    -- Второй ряд кнопок (3 кнопки) - начинаются на 15 строке
-    local buttonSpacing = 4  -- Расстояние между кнопками
-    
-    local supportButton = MainForm:addButton(startX, 15, " СВЯЗАТЬСЯ С НАМИ ", function()
+    -- Второй ряд кнопок (3 кнопки с центрированием)
+    local totalWidth = 3 * smallButtonWidth + 2 * buttonSpacing
+    local startX = centerX - math.floor(totalWidth / 2)
+
+    -- СВЯЗАТЬСЯ С НАМИ
+    MainForm:addButton(startX, 15, " СВЯЗАТЬСЯ С НАМИ ", function()
         createSupportForm():setActive()
-    end)
-    supportButton.H = buttonHeight
-    supportButton.W = smallButtonWidth
-    supportButton.color = 0x5555FF
-    supportButton.fontColor = 0xFFFFFF
+    end).H, .W, .color, .fontColor = buttonHeight, smallButtonWidth, 0x5555FF, 0xFFFFFF
 
-    local rulesButton = MainForm:addButton(
-    math.floor((screenWidth - smallButtonWidth) / 2,  -- X-позиция (центр экрана)
-    15,                                              -- Y-позиция
-    " ПРАВИЛА ", 
-    function()
+    -- ПРАВИЛА (по центру)
+    MainForm:addButton(startX + smallButtonWidth + buttonSpacing, 15, " ПРАВИЛА ", function()
         RulesForm:setActive()
-    end
-)
-    rulesButton.H = buttonHeight
-    rulesButton.W = smallButtonWidth
-    rulesButton.color = 0x333333
-    rulesButton.fontColor = 0xFF8F00
+    end).H, .W, .color, .fontColor = buttonHeight, smallButtonWidth, 0x333333, 0xFF8F00
 
-    local exitButton = MainForm:addButton(endX - smallButtonWidth, 15, " ВЫХОД ", function()
+    -- ВЫХОД
+    MainForm:addButton(startX + 2*(smallButtonWidth + buttonSpacing), 15, " ВЫХОД ", function()
         AutorizationForm:setActive()
-    end)
-    exitButton.H = buttonHeight
-    exitButton.W = smallButtonWidth
-    exitButton.color = 0xFF5555
-    exitButton.fontColor = 0xFFFFFF
+    end).H, .W, .color, .fontColor = buttonHeight, smallButtonWidth, 0xFF5555, 0xFFFFFF
 
     return MainForm
 end

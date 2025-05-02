@@ -152,7 +152,12 @@ function createNumberEditForm(callback, form, buttonText, pricePerItem, currentB
     itemCountEdit.W = 18
     itemCountEdit.text = "1"  -- Начальное значение
     
+    if showCalculation then
+        sumLabel = itemCounterNumberForm:addLabel(2, 7, "Сумма: " .. string.format("%.2f", pricePerItem))
+        sumLabel.fontColor = 0x00FF00
+    end
 
+    -- Функция обновления суммы с защитой от ошибок
     local function updateSum()
         if not showCalculation then return end
         
@@ -167,9 +172,6 @@ function createNumberEditForm(callback, form, buttonText, pricePerItem, currentB
         gpu.setForeground(sumLabel.fontColor)
         gpu.set(sumLabel.left, sumLabel.top, sumLabel.text)
     end
-
-
-
 
     -- Обработчики событий
     itemCountEdit.onInput = function(text)
@@ -229,7 +231,7 @@ function createAutorizationForm()
     AutorizationForm:addLabel(22, 20, "███████║██║  ██║╚██████╔╝██║             ")
     AutorizationForm:addLabel(22, 21, "╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚═╝             ")
     
-    AutorizationForm:addLabel(22, 23, "     ↓  Встаньте на PIM 4   ↓       ")
+    AutorizationForm:addLabel(22, 23, "     ↓  Встаньте на PIM 5   ↓       ")
     authorLabel.fontColor = 0x00FDFF
 
     return AutorizationForm

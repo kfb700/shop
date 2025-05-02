@@ -153,7 +153,7 @@ function createNumberEditForm(callback, form, buttonText, pricePerItem, currentB
     itemCountEdit.text = "1"  -- Начальное значение
     
     if showCalculation then
-        sumLabel = itemCounterNumberForm:addLabel(2, 7, "Сумма: " .. string.format("%.2f", pricePerItem))
+        sumLabel = itemCounterNumberForm:addLabel(1, 8, "Сумма: " .. string.format("%.2f", pricePerItem))
         sumLabel.fontColor = 0x00FF00
     end
 
@@ -231,7 +231,7 @@ function createAutorizationForm()
     AutorizationForm:addLabel(22, 20, "███████║██║  ██║╚██████╔╝██║             ")
     AutorizationForm:addLabel(22, 21, "╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚═╝             ")
     
-    AutorizationForm:addLabel(22, 23, "     ↓  Встаньте на PIM 6   ↓       ")
+    AutorizationForm:addLabel(22, 23, "     ↓  Встаньте на PIM 7   ↓       ")
     authorLabel.fontColor = 0x00FDFF
 
     return AutorizationForm

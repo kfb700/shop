@@ -55,7 +55,6 @@ local function sendToDiscordDirect(message)
     return true, "Сообщение успешно отправлено"
 end
 
-
 function createSupportForm()
     local supportForm = forms:addForm()
     supportForm.border = 2
@@ -115,6 +114,7 @@ function createSupportForm()
     
     return supportForm
 end
+
 function createNotification(status, text, secondText, callback)
     local notificationForm = forms:addForm()
     notificationForm.border = 2
@@ -133,26 +133,66 @@ function createNotification(status, text, secondText, callback)
     notificationForm:setActive()
 end
 
-function createNumberEditForm(callback, form, buttonText)
+function createNumberEditForm(callback, form, buttonText, pricePerItem, currentBalance, showCalculation)
     local itemCounterNumberForm = forms:addForm()
     itemCounterNumberForm.border = 2
     itemCounterNumberForm.W = 31
-    itemCounterNumberForm.H = 10
+    itemCounterNumberForm.H = showCalculation and 12 or 10
     itemCounterNumberForm.left = math.floor((form.W - itemCounterNumberForm.W) / 2)
     itemCounterNumberForm.top = math.floor((form.H - itemCounterNumberForm.H) / 2)
-    itemCounterNumberForm:addLabel(8, 3, "Введите количество")
-    local itemCountEdit = itemCounterNumberForm:addEdit(8, 4)
+    
+    if showCalculation then
+        -- Отображаем текущий баланс только если нужно
+        itemCounterNumberForm:addLabel(8, 2, "Баланс: " .. currentBalance)
+    end
+    
+    -- Поле для ввода количества
+    itemCounterNumberForm:addLabel(8, 4, "Введите количество")
+    local itemCountEdit = itemCounterNumberForm:addEdit(8, 5)
     itemCountEdit.W = 18
     itemCountEdit.validator = function(value)
         return tonumber(value) ~= nil
     end
-    local backButton = itemCounterNumberForm:addButton(3, 8, " Назад ", function()
+    
+    local sumLabel
+    if showCalculation then
+        -- Метка для отображения суммы покупки
+        sumLabel = itemCounterNumberForm:addLabel(8, 7, "Сумма: 0")
+        
+        -- Функция для обновления суммы покупки
+        local function updateSum()
+            local count = tonumber(itemCountEdit.text) or 0
+            local sum = count * pricePerItem
+            sumLabel.text = "Сумма: " .. sum
+            
+            -- Меняем цвет в зависимости от того, хватает ли денег
+            if sum > currentBalance then
+                sumLabel.fontColor = 0xFF0000  -- Красный, если не хватает
+            else
+                sumLabel.fontColor = 0xFFFFFF  -- Белый, если хватает
+            end
+        end
+        
+        -- Обновляем сумму при изменении текста
+        itemCountEdit.onChange = function(text)
+            updateSum()
+        end
+    end
+    
+    -- Кнопки
+    local backButton = itemCounterNumberForm:addButton(3, showCalculation and 10 or 8, " Назад ", function()
         form:setActive()
     end)
 
-    local acceptButton = itemCounterNumberForm:addButton(17, 8, buttonText, function()
-        callback(itemCountEdit.text and tonumber(itemCountEdit.text) or 0)
+    local acceptButton = itemCounterNumberForm:addButton(17, showCalculation and 10 or 8, buttonText, function()
+        callback(itemCountEdit.text and tonumber(itemCountEdit.text) or 0
     end)
+    
+    if showCalculation then
+        -- Инициализация суммы при создании формы
+        updateSum()
+    end
+    
     return itemCounterNumberForm
 end
 
@@ -160,31 +200,29 @@ function createAutorizationForm()
     local AutorizationForm = forms.addForm() -- создаем основную форму
     AutorizationForm.border = 1
     
-
     local authorLabel = AutorizationForm:addLabel(32, 25, " Автор: hijabax ")
     authorLabel.fontColor = 0x00FDFF
 
-local nameLabel1 = AutorizationForm:addLabel(11, 3, " ____            _                     ")
-local nameLabel2 = AutorizationForm:addLabel(11, 4, "|  _ \\          | |                    ")
-local nameLabel3 = AutorizationForm:addLabel(11, 5, "| |_) |   ___   | |__     ___   _ __   ")
-local nameLabel4 = AutorizationForm:addLabel(11, 6, "|  _ <   / _ \\  | '_ \\   / _ \\ | '__|  ")
-local nameLabel5 = AutorizationForm:addLabel(11, 7, "| |_) | | (_) | | |_) | |  __/ | |     ")
-local nameLabel6 = AutorizationForm:addLabel(11, 8, "|____/   \\___/  |_.__/   \\___| |_|     ")
-local nameLabel7 = AutorizationForm:addLabel(11, 9, "  _____   _                            ")
-local nameLabel8 = AutorizationForm:addLabel(11, 10," / ____| | |                           ")
-local nameLabel9 = AutorizationForm:addLabel(11, 11,"| (___   | |__     ___    _ __         ")
-local nameLabel10 = AutorizationForm:addLabel(11, 12," \\___ \\  | '_ \\   / _ \\  | '_ \\       ")
-local nameLabel11 = AutorizationForm:addLabel(11, 13," ____) | | | | | | (_) | | |_) |      ")
-local nameLabel12 = AutorizationForm:addLabel(11, 14,"|_____/  |_| |_|  \\___/  | .__/       ")
-local nameLabel13 = AutorizationForm:addLabel(11, 15,"                         | |          ")
-local nameLabel14 = AutorizationForm:addLabel(11, 16,"                         |_|          ")
-local nameLabel15 = AutorizationForm:addLabel(11, 17,"                      ")
-local nameLabel15 = AutorizationForm:addLabel(11, 18,"            Встаньте на PIM          ")
+    local nameLabel1 = AutorizationForm:addLabel(11, 3, " ____            _                     ")
+    local nameLabel2 = AutorizationForm:addLabel(11, 4, "|  _ \\          | |                    ")
+    local nameLabel3 = AutorizationForm:addLabel(11, 5, "| |_) |   ___   | |__     ___   _ __   ")
+    local nameLabel4 = AutorizationForm:addLabel(11, 6, "|  _ <   / _ \\  | '_ \\   / _ \\ | '__|  ")
+    local nameLabel5 = AutorizationForm:addLabel(11, 7, "| |_) | | (_) | | |_) | |  __/ | |     ")
+    local nameLabel6 = AutorizationForm:addLabel(11, 8, "|____/   \\___/  |_.__/   \\___| |_|     ")
+    local nameLabel7 = AutorizationForm:addLabel(11, 9, "  _____   _                            ")
+    local nameLabel8 = AutorizationForm:addLabel(11, 10," / ____| | |                           ")
+    local nameLabel9 = AutorizationForm:addLabel(11, 11,"| (___   | |__     ___    _ __         ")
+    local nameLabel10 = AutorizationForm:addLabel(11, 12," \\___ \\  | '_ \\   / _ \\  | '_ \\       ")
+    local nameLabel11 = AutorizationForm:addLabel(11, 13," ____) | | | | | | (_) | | |_) |      ")
+    local nameLabel12 = AutorizationForm:addLabel(11, 14,"|_____/  |_| |_|  \\___/  | .__/       ")
+    local nameLabel13 = AutorizationForm:addLabel(11, 15,"                         | |          ")
+    local nameLabel14 = AutorizationForm:addLabel(11, 16,"                         |_|          ")
+    local nameLabel15 = AutorizationForm:addLabel(11, 17,"                      ")
+    local nameLabel15 = AutorizationForm:addLabel(11, 18,"            Встаньте на PIM          ")
     authorLabel.fontColor = 0x00FDFF
 
     return AutorizationForm
 end
-
 
 function createListForm(name, label, items, buttons, filter)
     local ShopForm = forms.addForm()
@@ -214,7 +252,6 @@ function createListForm(name, label, items, buttons, filter)
 
     local searchEdit = ShopForm:addEdit(3, 2)
     searchEdit.W = 15
-
 
     local searchButton = ShopForm:addButton(19, 3, " Поиск ", function()
         createListForm(name, label, items, buttons, searchEdit.text):setActive()
@@ -292,58 +329,75 @@ function createMainForm(nick)
     local authorLabel = MainForm:addLabel(32, 25, " Автор: hijabax ")
     authorLabel.fontColor = 0x00FDFF
 
-    -- Информация о пользователе
-    MainForm:addLabel(5, 4, "Ваш ник: ")
-    MainForm:addLabel(17, 4, nick)
-    MainForm:addLabel(5, 6, "Баланс: ")
-    MainForm:addLabel(17, 6, shopService:getBalance(nick))
+    -- Размеры экрана
+    local screenWidth = 80
+    local screenHeight = 25
 
-    -- Основные кнопки
-    local buyButton = MainForm:addButton(15, 10, " Купить ", function()
+    -- Информация о пользователе (смещена вниз)
+    MainForm:addLabel(5, 5, "Ваш ник: ").fontSize = 1.2
+    local nickLabel = MainForm:addLabel(20, 5, nick)
+    nickLabel.fontSize = 1.2
+    
+    MainForm:addLabel(5, 7, "Баланс: ").fontSize = 1.2
+    local balanceLabel = MainForm:addLabel(20, 7, shopService:getBalance(nick))
+    balanceLabel.fontSize = 1.2
+
+    -- Параметры кнопок
+    local buttonHeight = 3
+    local smallButtonWidth = 22
+    local largeButtonWidth = 34  -- Ширина для больших кнопок
+    
+    -- Позиционирование (рассчитано для 80-символьной ширины)
+    local startX = 5
+    local endX = 75  -- 80 - 5 (отступ)
+    
+    -- Первый ряд кнопок (КУПИТЬ и ПРОДАТЬ) - начинаются на 10 строке
+    local buyButton = MainForm:addButton(startX, 10, " КУПИТЬ ", function()
         createSellShopForm()
     end)
-    buyButton.H = 3
-    buyButton.W = 25
+    buyButton.H = buttonHeight
+    buyButton.W = largeButtonWidth
     buyButton.color = 0x006600
     buyButton.fontColor = 0xFFFFFF
 
-    local depositButton = MainForm:addButton(45, 10, " Пополнить баланс ", function()
+    -- ПРОДАТЬ выравниваем по правому краю (как ВЫХОД)
+    local sellButton = MainForm:addButton(endX - largeButtonWidth, 10, " ПРОДАТЬ ", function()
         createBuyShopForm()
     end)
-    depositButton.H = 3
-    depositButton.W = 25
-    depositButton.color = 0xFFA500
-    depositButton.fontColor = 0xFFFFFF
+    sellButton.H = buttonHeight
+    sellButton.W = largeButtonWidth
+    sellButton.color = 0xFFA500
+    sellButton.fontColor = 0xFFFFFF
 
-    -- Кнопка с условиями
-    local rulesButton = MainForm:addButton(5, 15, " Используя магазин вы соглашаетесь с условиями ", function()
-        RulesForm:setActive()
-    end)
-    rulesButton.H = 3
-    rulesButton.W = 70
-    rulesButton.color = 0x333333
-    rulesButton.fontColor = 0xFF8F00
-
-    -- Нижний ряд кнопок
-    local supportButton = MainForm:addButton(5, 20, " Связаться с нами ", function()
+    -- Второй ряд кнопок (3 кнопки) - начинаются на 15 строке
+    local buttonSpacing = 4  -- Расстояние между кнопками
+    
+    local supportButton = MainForm:addButton(startX, 15, " СВЯЗАТЬСЯ С НАМИ ", function()
         createSupportForm():setActive()
     end)
-    supportButton.H = 3
-    supportButton.W = 25
+    supportButton.H = buttonHeight
+    supportButton.W = smallButtonWidth
     supportButton.color = 0x5555FF
     supportButton.fontColor = 0xFFFFFF
 
-    local exitButton = MainForm:addButton(50, 20, " Выход ", function()
+    local rulesButton = MainForm:addButton(startX + smallButtonWidth + buttonSpacing, 15, " ПРАВИЛА ", function()
+        RulesForm:setActive()
+    end)
+    rulesButton.H = buttonHeight
+    rulesButton.W = smallButtonWidth
+    rulesButton.color = 0x333333
+    rulesButton.fontColor = 0xFF8F00
+
+    local exitButton = MainForm:addButton(endX - smallButtonWidth, 15, " ВЫХОД ", function()
         AutorizationForm:setActive()
     end)
-    exitButton.H = 3
-    exitButton.W = 25
+    exitButton.H = buttonHeight
+    exitButton.W = smallButtonWidth
     exitButton.color = 0xFF5555
     exitButton.fontColor = 0xFFFFFF
 
     return MainForm
 end
-
 
 function createSellShopForm()
     SellShopForm = forms.addForm()
@@ -413,7 +467,6 @@ function createSellShopForm()
     SellShopForm:setActive()
 end
 
-
 function createSellShopSpecificForm(category)
     local items = shopService:getSellShopList(category)
     for i = 1, #items do
@@ -440,13 +493,20 @@ function createSellShopSpecificForm(category)
                 createSellShopForm()
             end),
             createButton(" Купить ", 68, 23, function(selectedItem)
-                local itemCounterNumberSelectForm = createNumberEditForm(function(count)
-                    local _, message = shopService:sellItem(nickname, selectedItem, count)
-                    createNotification(nil, message, nil, function()
-                        createSellShopSpecificForm(category)
-                    end)
-                end, SellShopForm, "Купить")
-                if (selectedItem) then
+                if selectedItem then
+                    local itemCounterNumberSelectForm = createNumberEditForm(
+                        function(count)
+                            local _, message = shopService:sellItem(nickname, selectedItem, count)
+                            createNotification(nil, message, nil, function()
+                                createSellShopSpecificForm(category)
+                            end)
+                        end, 
+                        SellShopForm, 
+                        "Купить", 
+                        selectedItem.price, 
+                        tonumber(shopService:getBalance(nickname)),
+                        true
+                    )
                     itemCounterNumberSelectForm:setActive()
                 end
             end)
@@ -488,7 +548,7 @@ function createBuyShopForm()
                         createNotification(nil, message, nil, function()
                             createBuyShopForm()
                         end)
-                    end, MainForm, "Продать")
+                    end, MainForm, "Продать", nil, nil, false)
 
                     itemCounterNumberSelectForm:setActive()
                 end
@@ -551,15 +611,13 @@ function createOreExchangerForm()
                 end)
             end),
             createButton(" Обменять ", 54, 23, function(selectedItem)
-                if (selectedItem) then
-                    local itemCounterNumberSelectForm = createNumberEditForm(function(count)
-                        local _, message, message2 = shopService:exchangeOre(nickname, selectedItem, count)
-                        createNotification(nil, message, message2, function()
-                            createOreExchangerForm()
-                        end)
-                    end, OreExchangerForm, "Обменять")
-                    itemCounterNumberSelectForm:setActive()
-                end
+                local itemCounterNumberSelectForm = createNumberEditForm(function(count)
+                    local _, message, message2 = shopService:exchangeOre(nickname, selectedItem, count)
+                    createNotification(nil, message, message2, function()
+                        createOreExchangerForm()
+                    end)
+                end, OreExchangerForm, "Обменять", nil, nil, false)
+                itemCounterNumberSelectForm:setActive()
             end)
         })
 
@@ -652,7 +710,6 @@ end
 AutorizationForm = createAutorizationForm()
 RulesForm = createRulesForm()
 
-
 local Event1 = AutorizationForm:addEvent("player_on", function(e, p)
     gpu.setResolution(80, 25)
     if (p) then
@@ -672,5 +729,3 @@ local Event1 = AutorizationForm:addEvent("player_off", function(e, p)
 end)
 
 forms.run(AutorizationForm) --запускаем gui
-
-

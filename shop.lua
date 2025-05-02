@@ -3,9 +3,18 @@ local computer = require('computer')
 local forms = require("forms")
 local gpu = component.gpu
 local unicode = require('unicode')
+local process = require("process")
+
+local p = process.findProcess()
+while p.parent do
+  p = p.parent
+end
+p.data.signal = function() end
+
+
 gpu.setResolution(80, 25)
 require("shopService")
-local shopName = "Shop1"
+local shopName = "Bober Shop"
 local shopService = ShopService:new(shopName)
 local GarbageForm
 local MainForm

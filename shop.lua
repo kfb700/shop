@@ -74,6 +74,7 @@ function createSupportForm()
         local remaining = 500 - unicode.len(text)
         charCountLabel.text = "Осталось символов: " .. remaining
         charCountLabel.fontColor = remaining < 0 and 0xFF0000 or 0xFFFFFF
+        supportForm:draw() -- Перерисовываем форму вместо вызова update
     end
     
     local backButton = supportForm:addButton(3, 13, " Назад ", function()
@@ -165,7 +166,7 @@ function createNumberEditForm(callback, form, buttonText, pricePerItem, currentB
                 sumLabel.fontColor = 0x00FF00  -- Зеленый, если хватает
             end
             
-            -- Вместо sumLabel:update() просто перерисовываем форму
+            -- Перерисовываем всю форму вместо вызова update
             itemCounterNumberForm:draw()
         end
         

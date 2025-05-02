@@ -141,6 +141,7 @@ function createNumberEditForm(callback, form, buttonText, pricePerItem, currentB
 
     -- Элементы интерфейса
     local balanceLabel, itemCountEdit, sumLabel
+    local sumLabelX, sumLabelY  -- Сохраняем координаты метки суммы
     
     if showCalculation then
         balanceLabel = itemCounterNumberForm:addLabel(8, 2, "Баланс: " .. string.format("%.2f", currentBalance))
@@ -155,9 +156,10 @@ function createNumberEditForm(callback, form, buttonText, pricePerItem, currentB
     if showCalculation then
         sumLabel = itemCounterNumberForm:addLabel(8, 7, "Сумма: " .. string.format("%.2f", pricePerItem))
         sumLabel.fontColor = 0x00FF00
+        sumLabelX, sumLabelY = sumLabel.left, sumLabel.top  -- Запоминаем координаты
     end
 
-    -- Функция обновления суммы с защитой от ошибок
+    -- Функция обновления суммы
     local function updateSum()
         if not showCalculation then return end
         
@@ -166,42 +168,47 @@ function createNumberEditForm(callback, form, buttonText, pricePerItem, currentB
         
         sumLabel.text = "Сумма: " .. string.format("%.2f", sum)
         sumLabel.fontColor = sum > currentBalance and 0xFF0000 or 0x00FF00
-        
-        -- Принудительное обновление
-        gpu.setBackground(0x000000)
-        gpu.setForeground(sumLabel.fontColor)
-        gpu.set(sumLabel.left, sumLabel.top, sumLabel.text)
+        sumLabel:draw()  -- Используем встроенный метод вместо gpu.set
     end
 
     -- Обработчики событий
-    itemCountEdit.onInput = function(text)
-        updateSum()
-    end
+    itemCountEdit.onInput = updateSum
+    itemCountEdit.onChange = updateSum
 
-    itemCountEdit.onChange = function(text)
-        updateSum()
-    end
-
-    -- Таймер обновления (если нужно)
+    -- Таймер обновления
     local updateTimer
     if showCalculation then
         updateTimer = itemCounterNumberForm:addTimer(0.5, updateSum)
         if updateTimer then
-            pcall(function() updateTimer:start() end)  -- Защищенный вызов
+            pcall(function() updateTimer:start() end)
+        end
+    end
+
+    -- Функция очистки
+    local function cleanUp()
+        if showCalculation and sumLabelX and sumLabelY then
+            -- Очищаем область суммы
+            gpu.setBackground(0x000000)
+            gpu.fill(sumLabelX, sumLabelY, unicode.len(sumLabel.text), 1, " ")
         end
     end
 
     -- Кнопки
     local backButton = itemCounterNumberForm:addButton(3, showCalculation and 10 or 8, " Назад ", function()
         if updateTimer then pcall(function() updateTimer:stop() end) end
+        cleanUp()
         form:setActive()
     end)
 
     local acceptButton = itemCounterNumberForm:addButton(17, showCalculation and 10 or 8, buttonText or "Принять", function()
         if updateTimer then pcall(function() updateTimer:stop() end) end
         local count = math.floor(tonumber(itemCountEdit.text) or 1)
-        callback(math.max(1, count))  -- Минимум 1 предмет
+        cleanUp()
+        callback(math.max(1, count))
     end)
+
+    -- Обработчик закрытия формы
+    itemCounterNumberForm.onClose = cleanUp
 
     -- Первоначальное обновление
     if showCalculation then updateSum() end
